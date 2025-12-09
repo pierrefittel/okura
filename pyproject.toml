@@ -8,6 +8,11 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "fastapi (>=0.124.0,<0.125.0)",
+    "uvicorn (>=0.38.0,<0.39.0)",
+    "sqlalchemy (>=2.0.45,<3.0.0)",
+    "psycopg2-binary (>=2.9.11,<3.0.0)",
+    "sudachipy (>=0.6.10,<0.7.0)"
 ]
 
 
