@@ -30,6 +30,7 @@ class AnalyzeResultItem(BaseModel):
     terme: str
     lecture: str
     pos: str
+    definitions: List[str] = [] # <-- Ajout de ce champ
 
 # La réponse complète de l'analyse
 class AnalyzeResponse(BaseModel):

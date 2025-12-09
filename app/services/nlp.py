@@ -1,35 +1,57 @@
 from sudachipy import tokenizer, dictionary
+from jamdict import Jamdict
 
-# On charge le dictionnaire une seule fois au démarrage du module
-# SplitMode.C est le mode qui garde les mots composés (ex: "New York" au lieu de "New" + "York")
+# Initialisation des moteurs (Sudachi + Jamdict)
+# Cela peut prendre quelques secondes au démarrage du serveur
 tokenizer_obj = dictionary.Dictionary().create()
 mode = tokenizer.Tokenizer.SplitMode.C
+jmd = Jamdict() 
 
 def analyze_japanese_text(text: str):
     """
-    Découpe le texte et retourne les lemmes (formes dictionnaire).
+    Découpe le texte, lemmatise et cherche les définitions.
     """
     morphemes = tokenizer_obj.tokenize(text, mode)
     extracted_data = []
 
-    # Filtre les catégories grammaticales inintéressantes (particules, ponctuation...)
-    # Cibles : Noms, Verbes, Adjectifs, Adverbes
     targets = ["名詞", "動詞", "形容詞", "副詞"]
 
     for m in morphemes:
-        pos = m.part_of_speech() # Renvoie une liste ['Nom', 'Commun', 'Général', ...]
+        pos = m.part_of_speech()
         major_pos = pos[0]
 
         if major_pos in targets:
-            # Petit nettoyage : ignorer les symboles et les espaces qui passeraient le filtre
-            if m.dictionary_form() == "" or m.dictionary_form().isspace():
+            lemma = m.dictionary_form()
+            
+            # Nettoyage basique
+            if lemma == "" or lemma.isspace():
                 continue
 
+            # --- PARTIE JAMDICT ---
+            # On cherche le mot dans le dictionnaire
+            definitions = []
+            try:
+                # lookup retourne un objet complexe, on simplifie
+                result = jmd.lookup(text=lemma)
+                if result.entries:
+                    # On prend la première entrée trouvée (souvent la plus pertinente)
+                    # et on extrait les sens (gloss)
+                    for sense in result.entries[0].senses:
+                        definitions.extend([g.text for g in sense.gloss])
+            except Exception:
+                # Si Jamdict plante ou ne trouve rien, on continue sans définition
+                pass
+            
+            # On limite à 3 définitions pour ne pas surcharger la réponse
+            definitions = definitions[:3]
+            # ----------------------
+
             extracted_data.append({
-                "original": m.surface(),          # Mot tel qu'il est écrit
-                "terme": m.dictionary_form(),     # Forme dictionnaire (pour la DB)
-                "lecture": m.reading_form(),      # Lecture Katakana (utile pour le tri/recherche)
-                "pos": major_pos                  # Nature (Nom, Verbe...)
+                "original": m.surface(),
+                "terme": lemma,
+                "lecture": m.reading_form(),
+                "pos": major_pos,
+                "definitions": definitions  # Nouveau champ
             })
 
     return extracted_data
