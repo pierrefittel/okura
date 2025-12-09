@@ -19,3 +19,18 @@ class VocabulaireResponse(VocabulaireBase):
 
     class Config:
         from_attributes = True  # Permet de lire les objets SQLAlchemy
+
+# Pour envoyer un texte à analyser
+class AnalyzeRequest(BaseModel):
+    text: str
+
+# Ce que l'analyse renvoie pour un mot trouvé
+class AnalyzeResultItem(BaseModel):
+    original: str
+    terme: str
+    lecture: str
+    pos: str
+
+# La réponse complète de l'analyse
+class AnalyzeResponse(BaseModel):
+    candidates: List[AnalyzeResultItem]

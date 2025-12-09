@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.schemas import vocabulaire as schemas
 from app.crud import vocabulaire as crud
+from app.services.nlp import analyze_japanese_text
 
 router = APIRouter(
     prefix="/vocabulaire",
@@ -19,3 +20,12 @@ def read_vocab(vocab_id: int, db: Session = Depends(get_db)):
     if db_vocab is None:
         raise HTTPException(status_code=404, detail="Mot introuvable")
     return db_vocab
+
+@router.post("/analyze", response_model=schemas.AnalyzeResponse)
+def analyze_text(request: schemas.AnalyzeRequest):
+    """
+    Prend un texte brut et retourne les mots potentiels à apprendre.
+    Cette route ne sauvegarde rien en base de données, elle sert juste d'outil d'analyse.
+    """
+    candidates = analyze_japanese_text(request.text)
+    return {"candidates": candidates}
