@@ -1,11 +1,14 @@
 from fastapi import FastAPI
 from app.core.database import engine, Base
-from app.models import vocabulaire # Import nécessaire pour que SQLAlchemy voie les tables
+from app.routers import vocabulaire # <-- Import du router
 
-# Création des tables dans la base de données (équivalent sommaire de "migrate")
+# Création des tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Projet Okura")
+
+# Enregistrement du router
+app.include_router(vocabulaire.router) # <-- Activation
 
 @app.get("/")
 def read_root():
