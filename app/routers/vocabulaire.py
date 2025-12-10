@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from typing import List
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.schemas import vocabulaire as schemas
@@ -29,3 +30,11 @@ def analyze_text(request: schemas.AnalyzeRequest):
     """
     candidates = analyze_japanese_text(request.text)
     return {"candidates": candidates}
+
+@router.get("/", response_model=List[schemas.VocabulaireResponse])
+def read_vocabulaires(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_vocabulaires(db, skip=skip, limit=limit)
+
+@router.post("/bulk", response_model=List[schemas.VocabulaireResponse])
+def create_vocab_bulk(items: List[schemas.VocabulaireCreate], db: Session = Depends(get_db)):
+    return crud.create_vocabulaire_bulk(db=db, items=items)
