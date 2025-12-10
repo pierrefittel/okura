@@ -4,37 +4,34 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.schemas import vocabulaire as schemas
 from app.crud import vocabulaire as crud
-from app.services.nlp import analyze_japanese_text
+from app.services.nlp import analyze_japanese_text 
 
-router = APIRouter(
-    prefix="/vocabulaire",
-    tags=["vocabulaire"]
-)
+router = APIRouter(prefix="/lists", tags=["Listes"])
 
-@router.post("/", response_model=schemas.VocabulaireResponse)
-def create_vocab(item: schemas.VocabulaireCreate, db: Session = Depends(get_db)):
-    return crud.create_vocabulaire(db=db, item=item)
+@router.post("/", response_model=schemas.VocabListResponse)
+def create_list(item: schemas.VocabListCreate, db: Session = Depends(get_db)):
+    return crud.create_list(db, item)
 
-@router.get("/{vocab_id}", response_model=schemas.VocabulaireResponse)
-def read_vocab(vocab_id: int, db: Session = Depends(get_db)):
-    db_vocab = crud.get_vocabulaire(db, vocab_id=vocab_id)
-    if db_vocab is None:
-        raise HTTPException(status_code=404, detail="Mot introuvable")
-    return db_vocab
+@router.get("/", response_model=List[schemas.VocabListResponse])
+def get_lists(skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
+    return crud.get_lists(db, skip, limit)
 
-@router.post("/analyze", response_model=schemas.AnalyzeResponse)
+@router.get("/{list_id}", response_model=schemas.VocabListWithCards)
+def get_list_details(list_id: int, db: Session = Depends(get_db)):
+    db_list = crud.get_list_with_cards(db, list_id)
+    if not db_list:
+        raise HTTPException(status_code=404, detail="Liste introuvable")
+    return db_list
+
+@router.post("/{list_id}/cards", response_model=schemas.VocabCardResponse)
+def add_card(list_id: int, item: schemas.VocabCardCreate, db: Session = Depends(get_db)):
+    if not crud.get_list_with_cards(db, list_id):
+        raise HTTPException(status_code=404, detail="Liste introuvable")
+    try:
+        return crud.add_card_to_list(db, list_id, item)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Erreur lors de l'ajout (Doublon probable).")
+
+@router.post("/analyze", response_model=schemas.AnalyzeResponse, tags=["Outils"])
 def analyze_text(request: schemas.AnalyzeRequest):
-    """
-    Prend un texte brut et retourne les mots potentiels à apprendre.
-    Cette route ne sauvegarde rien en base de données, elle sert juste d'outil d'analyse.
-    """
-    candidates = analyze_japanese_text(request.text)
-    return {"candidates": candidates}
-
-@router.get("/", response_model=List[schemas.VocabulaireResponse])
-def read_vocabulaires(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return crud.get_vocabulaires(db, skip=skip, limit=limit)
-
-@router.post("/bulk", response_model=List[schemas.VocabulaireResponse])
-def create_vocab_bulk(items: List[schemas.VocabulaireCreate], db: Session = Depends(get_db)):
-    return crud.create_vocabulaire_bulk(db=db, items=items)
+    return {"candidates": analyze_japanese_text(request.text)}

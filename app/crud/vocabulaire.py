@@ -2,40 +2,39 @@ from sqlalchemy.orm import Session
 from app.models import vocabulaire as models
 from app.schemas import vocabulaire as schemas
 
-def create_vocabulaire(db: Session, item: schemas.VocabulaireCreate):
-    db_item = models.Vocabulaire(
-        terme=item.terme,
-        lecture=item.lecture,
-        pos=item.pos,                   # <-- Nouveau
-        langue=item.langue,
-        definitions=item.definitions    # <-- Nouveau
+# --- Listes ---
+def create_list(db: Session, list_data: schemas.VocabListCreate):
+    db_list = models.VocabList(
+        title=list_data.title,
+        description=list_data.description
     )
-    db.add(db_item)
+    db.add(db_list)
     db.commit()
-    db.refresh(db_item)
-    return db_item
+    db.refresh(db_list)
+    return db_list
 
-def get_vocabulaire(db: Session, vocab_id: int):
-    return db.query(models.Vocabulaire).filter(models.Vocabulaire.id == vocab_id).first()
+def get_lists(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.VocabList).offset(skip).limit(limit).all()
 
-def get_vocabulaires(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Vocabulaire).offset(skip).limit(limit).all()
+def get_list_with_cards(db: Session, list_id: int):
+    return db.query(models.VocabList).filter(models.VocabList.id == list_id).first()
 
-def create_vocabulaire_bulk(db: Session, items: list[schemas.VocabulaireCreate]):
-    db_items = [
-        models.Vocabulaire(
-            terme=item.terme,
-            lecture=item.lecture,
-            pos=item.pos,
-            langue=item.langue,
-            definitions=item.definitions
-        )
-        for item in items
-    ]
-    db.add_all(db_items)
+# --- Cartes ---
+def add_card_to_list(db: Session, list_id: int, card_data: schemas.VocabCardCreate):
+    # Transformation de la liste de définitions en une seule chaîne pour le stockage simple
+    defs_str = ""
+    if card_data.definitions:
+        defs_str = " | ".join(card_data.definitions)
+
+    db_card = models.VocabCard(
+        list_id=list_id,
+        ent_seq=card_data.ent_seq,
+        terme=card_data.terme,
+        lecture=card_data.lecture,
+        pos=card_data.pos,
+        definitions=defs_str
+    )
+    db.add(db_card)
     db.commit()
-    # Pour récupérer les IDs générés, c'est plus coûteux en performance, 
-    # mais pour <100 mots ça va.
-    for item in db_items:
-        db.refresh(item)
-    return db_items
+    db.refresh(db_card)
+    return db_card
