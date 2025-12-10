@@ -1,4 +1,5 @@
 version: '3.8'
+
 services:
   db:
     image: postgres:15
@@ -8,8 +9,29 @@ services:
       - POSTGRES_USER=landry
       - POSTGRES_PASSWORD=secret
       - POSTGRES_DB=vocab_db
+    # On garde le port 5432 exposé si vous voulez inspecter la DB depuis Windows
     ports:
-      - "5432:5432"  # Accessible depuis ton script Python local sur le port 5432
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U landry -d vocab_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: okura_app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app  # <-- C'est ici que la magie opère : votre code Windows est "projeté" dans le conteneur
+    ports:
+      - "8000:8000"
+    environment:
+      # Notez le changement : host n'est plus "localhost" mais "db" (le nom du service ci-dessus)
+      - DATABASE_URL=postgresql://landry:secret@db:5432/vocab_db
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:
