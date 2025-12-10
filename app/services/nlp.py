@@ -5,7 +5,7 @@ from jamdict import Jamdict
 # Cela peut prendre quelques secondes au démarrage du serveur
 tokenizer_obj = dictionary.Dictionary().create()
 mode = tokenizer.Tokenizer.SplitMode.C
-jmd = Jamdict() 
+jmd = Jamdict()
 
 def analyze_japanese_text(text: str):
     """
