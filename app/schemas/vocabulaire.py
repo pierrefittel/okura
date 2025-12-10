@@ -31,6 +31,7 @@ class AnalyzeResultItem(BaseModel):
     terme: str
     lecture: str
     pos: str
+    ent_seq: Optional[int] = None  # <--- AJOUT CRUCIAL
     definitions: List[str] = []
 
 class AnalyzeResponse(BaseModel):

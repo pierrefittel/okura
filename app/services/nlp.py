@@ -9,8 +9,6 @@ jmd = Jamdict()
 def analyze_japanese_text(text: str):
     morphemes = tokenizer_obj.tokenize(text, mode)
     extracted_data = []
-
-    # On ajoute "助動詞" (Verbe auxiliaire) qui est souvent pertinent en classique
     targets = ["名詞", "動詞", "形容詞", "副詞", "助動詞"] 
 
     for m in morphemes:
@@ -19,25 +17,28 @@ def analyze_japanese_text(text: str):
 
         if major_pos in targets:
             lemma = m.dictionary_form()
-            
             if lemma == "" or lemma.isspace():
                 continue
 
             definitions = []
+            ent_seq = None  # <--- Initialisation
+
             try:
-                # 1. Recherche standard
                 result = jmd.lookup(lemma)
                 
-                # Priorité aux mots communs (entries)
+                # 1. Recherche standard
                 if result.entries:
-                    for sense in result.entries[0].senses:
+                    first_entry = result.entries[0] # On cible l'entrée principale
+                    ent_seq = first_entry.ent_seq   # <--- CAPTURE DE L'ID UNIQUE
+                    
+                    for sense in first_entry.senses:
                         definitions.extend([g.text for g in sense.gloss])
                 
-                # 2. Si vide, on regarde les Noms Propres (names)
+                # 2. Noms Propres (généralement pas de ent_seq standard, mais des id différents)
                 elif result.names:
-                     # Les noms propres ont une structure différente (traductions dans 'gloss' parfois directes)
-                     # Souvent: translation est un objet, on prend .text ou on convertit
                      for name_entity in result.names:
+                        # Note: les names ont aussi des IDs mais gérés séparément dans JMDict
+                        # Pour l'instant on laisse ent_seq à None ou on gère un cas spécifique
                         if name_entity.senses:
                              for sense in name_entity.senses:
                                  definitions.extend([g.text for g in sense.gloss])
@@ -50,6 +51,7 @@ def analyze_japanese_text(text: str):
                 "terme": lemma,
                 "lecture": m.reading_form(),
                 "pos": major_pos,
+                "ent_seq": ent_seq, # <--- On le passe au schéma
                 "definitions": definitions[:3]
             })
 
