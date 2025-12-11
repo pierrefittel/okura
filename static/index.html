@@ -21,6 +21,7 @@
 
         <main>
             <div v-if="currentTab === 'analyze'" class="split-view">
+                
                 <div class="panel left-panel">
                     <div class="panel-header">
                         <h2>1. Texte Source</h2>
@@ -28,9 +29,11 @@
                     </div>
                     <textarea v-model="sourceText" placeholder="Collez votre article japonais ici..."></textarea>
                 </div>
+
                 <div class="panel right-panel">
                     <div class="panel-header">
                         <h2>2. Vocabulaire détecté</h2>
+                        
                         <div class="list-controls">
                             <select v-model="selectedListId">
                                 <option :value="null" disabled>Choisir une liste...</option>
@@ -42,40 +45,77 @@
                             </button>
                         </div>
                     </div>
+
                     <div class="results-area" v-if="candidates.length > 0">
+                        <p class="hint">Cliquez sur les mots à garder.</p>
+                        
                         <div class="cards-grid">
-                            <div v-for="(word, index) in candidates" :key="index" class="word-card" :class="{ 'selected': word.selected }" @click="toggleWord(word)">
+                            <div 
+                                v-for="(word, index) in candidates" 
+                                :key="index"
+                                class="word-card"
+                                :class="{ 'selected': word.selected }"
+                                @click="toggleWord(word)"
+                            >
                                 <div class="word-kanji">{{ word.terme }}</div>
                                 <div class="word-kana">{{ word.lecture }}</div>
-                                <div class="word-def" :title="formatDefs(word.definitions)">{{ word.definitions[0] || '...' }}</div>
+                                <div class="word-def" :title="formatDefs(word.definitions)">
+                                    {{ word.definitions[0] || '...' }}
+                                </div>
+                                <div class="word-pos">{{ word.pos }}</div>
                             </div>
                         </div>
+                    </div>
+                    <div v-else class="empty-state">
+                        En attente d'analyse...
                     </div>
                 </div>
             </div>
 
             <div v-if="currentTab === 'lists'" class="lists-view">
+                
                 <div class="container" v-if="!activeList">
                     <h2>Mes Listes</h2>
                     <div class="lists-grid">
                         <div v-for="list in lists" :key="list.id" class="list-card" @click="openList(list)">
                             <h3>{{ list.title }}</h3>
-                            <p>{{ list.description }}</p>
-                            <small>{{ new Date(list.created_at).toLocaleDateString() }}</small>
+                            <p>{{ list.description || 'Pas de description' }}</p>
+                            <div class="meta" style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                                <small>Créée le {{ new Date(list.created_at).toLocaleDateString() }}</small>
+                                <button class="btn-small">Ouvrir ➔</button>
+                            </div>
                         </div>
                     </div>
                 </div>
+
                 <div class="container" v-else>
                     <div class="list-header">
-                        <button class="btn-text" @click="activeList = null">← Retour</button>
-                        <h2>{{ activeList.title }}</h2>
+                        <button class="btn-text" @click="activeList = null">← Retour aux listes</button>
+                        <div class="header-content">
+                            <h2>{{ activeList.title }}</h2>
+                            <span class="badge">{{ activeList.cards.length }} mots</span>
+                        </div>
                     </div>
+
                     <div class="cards-table">
+                        <div class="table-header">
+                            <span>Terme</span>
+                            <span>Lecture</span>
+                            <span>Sens retenu</span>
+                            <span>Actions</span>
+                        </div>
+                        
                         <div class="table-row" v-for="card in activeList.cards" :key="card.id">
                             <span class="jp-term">{{ card.terme }}</span>
                             <span class="jp-reading">{{ card.lecture }}</span>
-                            <span class="def-preview">{{ card.definitions }}</span>
-                            <button class="btn-icon danger" @click="deleteCard(card.id)">🗑</button>
+                            <span class="def-preview" :title="card.definitions">{{ card.definitions }}</span>
+                            <div class="actions">
+                                <button class="btn-icon danger" @click="deleteCard(card.id)" title="Supprimer">🗑</button>
+                            </div>
+                        </div>
+                        
+                        <div v-if="activeList.cards.length === 0" class="empty-list" style="padding: 20px; text-align: center; color: #a0a0b0;">
+                            Cette liste est vide. Utilisez l'analyseur pour y ajouter des mots.
                         </div>
                     </div>
                 </div>
@@ -126,11 +166,11 @@
             </div>
 
         </main>
-        
+
         <div class="modal-backdrop" v-if="showCreateListModal" @click.self="showCreateListModal = false">
             <div class="modal">
                 <h3>Nouvelle Liste</h3>
-                <input v-model="newListTitle" placeholder="Titre">
+                <input v-model="newListTitle" placeholder="Titre (ex: NHK News 12/12)" type="text" autofocus>
                 <div class="modal-actions">
                     <button @click="showCreateListModal = false">Annuler</button>
                     <button class="btn-primary" @click="createNewList">Créer</button>
@@ -138,6 +178,7 @@
             </div>
         </div>
     </div>
+
     <script src="app.js"></script>
 </body>
 </html>
