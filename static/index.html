@@ -17,6 +17,7 @@
                 <button :class="{ active: currentTab === 'lists' }" @click="currentTab = 'lists'">Listes</button>
                 <button :class="{ active: currentTab === 'train' }" @click="currentTab = 'train'">Entraînement</button>
                 <button :class="{ active: currentTab === 'dashboard' }" @click="currentTab = 'dashboard'">Stats</button>
+                <button :class="{ active: currentTab === 'Export' }" @click="currentTab = 'export'">Export</button>
             </nav>
         </header>
 
@@ -165,6 +166,28 @@
                         <div class="heatmap-grid">
                             <div v-for="day in heatmapDays" :title="day.date + ': ' + day.count" class="heat-cell" :class="getHeatClass(day.count)"></div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="currentTab === 'export'" class="export-view">
+                <div class="container">
+                    <h2>Export</h2>
+                    <div class="stats-row">
+                        </div>
+                    
+                    <div style="margin-top:50px; border-top: 1px solid #ccc; padding-top: 30px;">
+                        <h3>Sauvegarde & Restauration</h3>
+                        <div style="display:flex; gap: 20px; align-items:center;">
+                            <button class="btn-primary" @click="downloadCsv">EXPORTER CSV</button>
+                            
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <input type="file" ref="fileInput" @change="uploadCsv" style="display:none" accept=".csv">
+                                <button class="btn-text" @click="$refs.fileInput.click()">IMPORTER CSV</button>
+                                <span v-if="importMsg" style="font-size:0.9rem; color:var(--success)">{{ importMsg }}</span>
+                            </div>
+                        </div>
+                        <p style="color:#777; font-size:0.85rem; margin-top:10px;">Format compatible Excel / LibreOffice.</p>
                     </div>
                 </div>
             </div>

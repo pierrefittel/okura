@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import Response
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.core.database import get_db
@@ -56,3 +57,22 @@ def delete_card(card_id: int, db: Session = Depends(get_db)):
 @router.post("/analyze", response_model=schemas.AnalyzeResponse)
 def analyze_text(request: schemas.AnalyzeRequest):
     return analyze_japanese_text(request.text)
+
+# --- DATA ---
+@router.get("/data/export")
+def export_data(db: Session = Depends(get_db)):
+    csv_content = crud.export_to_csv(db)
+    return Response(
+        content=csv_content, 
+        media_type="text/csv", 
+        headers={"Content-Disposition": "attachment; filename=okura_backup.csv"}
+    )
+
+@router.post("/data/import")
+async def import_data(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    if not file.filename.endswith('.csv'): 
+        raise HTTPException(400, "Fichier CSV requis")
+    
+    content = await file.read()
+    stats = crud.import_from_csv(db, content.decode('utf-8'))
+    return {"message": "Import terminé", "details": stats}

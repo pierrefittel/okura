@@ -1,3 +1,5 @@
+import csv
+import io
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta, date
@@ -101,3 +103,87 @@ def delete_card(db: Session, card_id: int):
         db.commit()
         return True
     return False
+
+ #--- Export Import CSV ---
+def export_to_csv(db: Session) -> str:
+    """Génère un CSV de toutes les cartes."""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # En-têtes standards
+    writer.writerow(['list_title', 'terme', 'lecture', 'pos', 'definitions', 'context', 'ent_seq', 'streak', 'interval', 'next_review'])
+    
+    # Jointure pour avoir le nom de la liste
+    cards = db.query(models.VocabCard).join(models.VocabList).all()
+    
+    for c in cards:
+        writer.writerow([
+            c.vocab_list.title,
+            c.terme,
+            c.lecture,
+            c.pos,
+            c.definitions,
+            c.context or "",
+            c.ent_seq or "",
+            c.streak,
+            c.interval,
+            c.next_review.isoformat() if c.next_review else ""
+        ])
+    
+    return output.getvalue()
+
+def import_from_csv(db: Session, csv_content: str):
+    """Importe un CSV et recrée les données."""
+    f = io.StringIO(csv_content)
+    reader = csv.DictReader(f)
+    
+    stats = {"cards_created": 0, "lists_created": 0, "errors": 0}
+    lists_cache = {l.title: l for l in db.query(models.VocabList).all()}
+    
+    for row in reader:
+        try:
+            list_title = row.get('list_title', 'Import Default')
+            
+            # Création liste si inexistante
+            if list_title not in lists_cache:
+                new_list = models.VocabList(title=list_title, description="Importé via CSV")
+                db.add(new_list)
+                db.commit()
+                db.refresh(new_list)
+                lists_cache[list_title] = new_list
+                stats["lists_created"] += 1
+            
+            current_list = lists_cache[list_title]
+            
+            # Vérification doublon (basique sur terme)
+            exists = db.query(models.VocabCard).filter(
+                models.VocabCard.list_id == current_list.id,
+                models.VocabCard.terme == row['terme']
+            ).first()
+            
+            if not exists:
+                ent_seq = int(row['ent_seq']) if row.get('ent_seq') else None
+                streak = int(row.get('streak', 0))
+                interval = int(row.get('interval', 0))
+                
+                new_card = models.VocabCard(
+                    list_id=current_list.id,
+                    terme=row['terme'],
+                    lecture=row.get('lecture'),
+                    pos=row.get('pos'),
+                    definitions=row.get('definitions'),
+                    context=row.get('context'),
+                    ent_seq=ent_seq,
+                    streak=streak,
+                    interval=interval
+                    # On laisse next_review se recalculer ou par défaut aujourd'hui pour simplifier
+                )
+                db.add(new_card)
+                stats["cards_created"] += 1
+                
+        except Exception as e:
+            print(f"Erreur import: {e}")
+            stats["errors"] += 1
+            
+    db.commit()
+    return stats

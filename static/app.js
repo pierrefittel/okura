@@ -10,7 +10,7 @@ createApp({
             lists: [], selectedListId: null, activeList: null, showCreateListModal: false, newListTitle: '',
             
             dueCards: [], currentCard: null, isFlipped: false, trainListId: null,
-            stats: { total_cards: 0, cards_learned: 0, due_today: 0, heatmap: {} }
+            stats: { total_cards: 0, cards_learned: 0, due_today: 0, heatmap: {}, importMsg: '' }
         }
     },
     computed: {
@@ -97,9 +97,13 @@ createApp({
             this.newListTitle = ''; this.showCreateListModal = false; await this.fetchLists();
         },
         async deleteCard(id) {
-            if(!confirm("Supprimer ?")) return;
-            await fetch(`/lists/cards/${id}`, {method: 'DELETE'});
-            if (this.activeList) this.activeList.cards = this.activeList.cards.filter(c => c.id !== id);
+            try {
+                await fetch(`/lists/cards/${id}`, {method: 'DELETE'});
+                // Mise à jour locale immédiate
+                if (this.activeList) {
+                    this.activeList.cards = this.activeList.cards.filter(c => c.id !== id);
+                }
+            } catch (e) { console.error("Erreur suppression", e); }
         },
         
         // --- DASH ---
@@ -111,6 +115,36 @@ createApp({
             if (!c) return '';
             if (c <= 5) return 'heat-1'; if (c <= 10) return 'heat-2';
             if (c <= 20) return 'heat-3'; return 'heat-4';
+        },
+
+// --- DASH & DATA (NOUVEAU) ---
+        async fetchStats() {
+            const res = await fetch('/lists/dashboard/stats');
+            this.stats = await res.json();
+        },
+        getHeatClass(c) {
+            if (!c) return '';
+            if (c <= 5) return 'heat-1'; if (c <= 10) return 'heat-2';
+            if (c <= 20) return 'heat-3'; return 'heat-4';
+        },
+        downloadCsv() {
+            window.location.href = "/lists/data/export";
+        },
+        async uploadCsv(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                const res = await fetch('/lists/data/import', { method: 'POST', body: formData });
+                if (res.ok) {
+                    const data = await res.json();
+                    this.importMsg = `Succès : ${data.details.cards_created} mots importés.`;
+                    setTimeout(() => this.importMsg = '', 4000);
+                    this.fetchStats(); 
+                    this.fetchLists();
+                } else alert("Erreur import");
+            } catch (e) { alert("Erreur réseau"); }
         }
     }
 }).mount('#app')
