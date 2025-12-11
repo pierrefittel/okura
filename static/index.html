@@ -17,7 +17,7 @@
                 <button :class="{ active: currentTab === 'lists' }" @click="currentTab = 'lists'">Listes</button>
                 <button :class="{ active: currentTab === 'train' }" @click="currentTab = 'train'">Entraînement</button>
                 <button :class="{ active: currentTab === 'dashboard' }" @click="currentTab = 'dashboard'">Stats</button>
-                <button :class="{ active: currentTab === 'Export' }" @click="currentTab = 'export'">Export</button>
+                <button :class="{ active: currentTab === 'export' }" @click="currentTab = 'export'">Données</button>
             </nav>
         </header>
 
@@ -25,9 +25,7 @@
             <div v-if="currentTab === 'analyze'" class="split-view">
                 <div class="panel left-panel">
                     <div class="panel-header">
-                        <div v-if="!readerMode">
-                            <h2>Source</h2>
-                        </div>
+                        <div v-if="!readerMode"><h2>Source</h2></div>
                         <div v-else class="reader-controls" style="width:100%; display:flex; gap:10px;">
                             <button class="btn-text" @click="readerMode = false">← Éditer</button>
                             <select v-model="highlightLevel" class="filter-select">
@@ -39,7 +37,6 @@
                             {{ isLoading ? '...' : 'ANALYSER' }}
                         </button>
                     </div>
-
                     <textarea v-if="!readerMode" v-model="sourceText" placeholder="Texte japonais..."></textarea>
                     <div v-else class="reader-content">
                         <div v-for="(sentence, i) in analyzedSentences" :key="i" class="sentence-line">
@@ -62,7 +59,6 @@
                             <button class="btn-text" @click="showCreateListModal = true" style="padding: 0 10px; font-size:1.2rem;">+</button>
                         </div>
                     </div>
-
                     <div class="detail-area" v-if="selectedToken">
                         <div class="detail-card">
                             <div class="card-header-large">
@@ -130,7 +126,6 @@
                         <option v-for="list in lists" :value="list.id">{{ list.title }}</option>
                     </select>
                 </div>
-
                 <div class="flashcard-container" v-if="currentCard">
                     <div class="flashcard">
                         <div class="card-front"><div class="kanji-main">{{ currentCard.terme }}</div></div>
@@ -170,24 +165,33 @@
                 </div>
             </div>
 
-            <div v-if="currentTab === 'export'" class="export-view">
+            <div v-if="currentTab === 'export'" class="dashboard-view">
                 <div class="container">
-                    <h2>Export</h2>
-                    <div class="stats-row">
-                        </div>
+                    <h2>Données</h2>
                     
-                    <div style="margin-top:50px; border-top: 1px solid #ccc; padding-top: 30px;">
-                        <h3>Sauvegarde & Restauration</h3>
-                        <div style="display:flex; gap: 20px; align-items:center;">
-                            <button class="btn-primary" @click="downloadCsv">EXPORTER CSV</button>
+                    <div class="detail-card" style="margin-top:20px; padding:40px; text-align:center;">
+                        <h3 style="margin-bottom:20px;">Sauvegarde & Restauration</h3>
+                        <p style="color:#777; font-size:0.9rem; margin-bottom:30px; max-width:600px; margin-left:auto; margin-right:auto;">
+                            Exportez vos données au format CSV pour les sécuriser ou les utiliser dans un tableur.
+                            L'import permet de restaurer une sauvegarde ou d'ajouter des mots en masse.
+                        </p>
+                        
+                        <div style="display:flex; justify-content:center; gap: 20px; align-items:center;">
+                            <button class="btn-primary" @click="downloadCsv" style="padding:15px 30px; font-size:1rem;">
+                                ⬇️ EXPORTER CSV
+                            </button>
                             
-                            <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="position:relative;">
                                 <input type="file" ref="fileInput" @change="uploadCsv" style="display:none" accept=".csv">
-                                <button class="btn-text" @click="$refs.fileInput.click()">IMPORTER CSV</button>
-                                <span v-if="importMsg" style="font-size:0.9rem; color:var(--success)">{{ importMsg }}</span>
+                                <button class="btn-text" @click="$refs.fileInput.click()" style="padding:15px 30px; font-size:1rem; border:2px solid var(--border-strong);">
+                                    ⬆️ IMPORTER CSV
+                                </button>
                             </div>
                         </div>
-                        <p style="color:#777; font-size:0.85rem; margin-top:10px;">Format compatible Excel / LibreOffice.</p>
+                        
+                        <div v-if="importMsg" style="margin-top:20px; color:var(--success); font-weight:bold;">
+                            {{ importMsg }}
+                        </div>
                     </div>
                 </div>
             </div>

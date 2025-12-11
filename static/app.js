@@ -10,7 +10,9 @@ createApp({
             lists: [], selectedListId: null, activeList: null, showCreateListModal: false, newListTitle: '',
             
             dueCards: [], currentCard: null, isFlipped: false, trainListId: null,
-            stats: { total_cards: 0, cards_learned: 0, due_today: 0, heatmap: {}, importMsg: '' }
+            
+            stats: { total_cards: 0, cards_learned: 0, due_today: 0, heatmap: {} },
+            importMsg: '' // <-- Corrigé : Variable à la racine
         }
     },
     computed: {
@@ -97,27 +99,14 @@ createApp({
             this.newListTitle = ''; this.showCreateListModal = false; await this.fetchLists();
         },
         async deleteCard(id) {
+            // SUPPRESSION DIRECTE (SANS CONFIRMATION)
             try {
                 await fetch(`/lists/cards/${id}`, {method: 'DELETE'});
-                // Mise à jour locale immédiate
-                if (this.activeList) {
-                    this.activeList.cards = this.activeList.cards.filter(c => c.id !== id);
-                }
+                if (this.activeList) this.activeList.cards = this.activeList.cards.filter(c => c.id !== id);
             } catch (e) { console.error("Erreur suppression", e); }
         },
         
-        // --- DASH ---
-        async fetchStats() {
-            const res = await fetch('/lists/dashboard/stats');
-            this.stats = await res.json();
-        },
-        getHeatClass(c) {
-            if (!c) return '';
-            if (c <= 5) return 'heat-1'; if (c <= 10) return 'heat-2';
-            if (c <= 20) return 'heat-3'; return 'heat-4';
-        },
-
-// --- DASH & DATA (NOUVEAU) ---
+        // --- DASH & DATA ---
         async fetchStats() {
             const res = await fetch('/lists/dashboard/stats');
             this.stats = await res.json();
@@ -139,7 +128,8 @@ createApp({
                 const res = await fetch('/lists/data/import', { method: 'POST', body: formData });
                 if (res.ok) {
                     const data = await res.json();
-                    this.importMsg = `Succès : ${data.details.cards_created} mots importés.`;
+                    // Mise à jour du message de succès
+                    this.importMsg = `Import réussi : ${data.details.cards_created} cartes créées.`;
                     setTimeout(() => this.importMsg = '', 4000);
                     this.fetchStats(); 
                     this.fetchLists();
