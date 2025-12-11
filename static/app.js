@@ -4,36 +4,51 @@ createApp({
     data() {
         return {
             currentTab: 'analyze',
-            
-            // ANALYSE
             sourceText: '',
             isLoading: false,
             candidates: [],
             
-            // LISTES
+            // Nouveau : Niveau de filtre (0 = tout voir, 5 = facile/N5)
+            // Logique : On garde si word.jlpt <= filterLevel ?
+            // Non, l'utilisateur veut "Occulter les plus faciles".
+            // Donc si je choisis "Masquer N5 (Niveau 5)", je veux voir N4, N3, N2, N1.
+            // JLPT : 5 (Easy) -> 1 (Hard).
+            // Filtre "Masquer N5" (Value 4) -> Montrer si JLPT < 5.
+            filterLevel: 0, 
+
             lists: [],
             selectedListId: null,
             activeList: null,
             
-            // TRAINING
             dueCards: [],
             currentCard: null,
             isFlipped: false,
             
-            // DASHBOARD
             stats: { total_cards: 0, cards_learned: 0, due_today: 0, heatmap: {} },
-            
-            // MODAL
             showCreateListModal: false,
-            newListTitle: ''
+            newListTitle: '',
+            newListDesc: ''
         }
     },
     computed: {
+        // C'est ici que la magie opère
+        filteredCandidates() {
+            if (this.filterLevel === 0) return this.candidates;
+            
+            return this.candidates.filter(c => {
+                // Si le mot n'a pas de niveau détecté (None/0), on l'affiche toujours par sécurité
+                if (!c.jlpt) return true;
+                
+                // Si filterLevel est 4 (Masquer N5), on garde ce qui est < 5 (donc 4, 3, 2, 1)
+                // Si filterLevel est 3 (Masquer N5-N4), on garde ce qui est < 4
+                return c.jlpt <= this.filterLevel;
+            });
+        },
         selectedCandidates() {
-            return this.candidates ? this.candidates.filter(c => c.selected) : [];
+            // On se base sur filteredCandidates pour ne prendre que ce qui est visible
+            return this.filteredCandidates.filter(c => c.selected);
         },
         heatmapDays() {
-            // Génère les 30 derniers jours pour l'affichage
             const days = [];
             for (let i = 29; i >= 0; i--) {
                 const d = new Date();
@@ -47,9 +62,11 @@ createApp({
             return days;
         }
     },
+    // ... Le reste (mounted, methods) reste identique ...
+    // ... Copiez vos méthodes existantes ici ...
     mounted() {
         this.fetchLists();
-        this.fetchStats(); // Charge les stats au démarrage
+        this.fetchStats();
     },
     watch: {
         currentTab(newTab) {
@@ -58,7 +75,26 @@ createApp({
         }
     },
     methods: {
-        // --- DASHBOARD ---
+        // ... (Vos méthodes existantes fetchStats, analyzeText, etc.)
+        // Assurez-vous juste que analyzeText remplit bien candidates
+        async analyzeText() {
+            if (!this.sourceText) return;
+            this.isLoading = true;
+            try {
+                const res = await fetch('/lists/analyze', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ text: this.sourceText })
+                });
+                const data = await res.json();
+                this.candidates = data.candidates.map(c => ({ 
+                    ...c, 
+                    selected: false 
+                }));
+            } catch (e) { alert("Erreur analyse"); }
+            finally { this.isLoading = false; }
+        },
+        // ... (Reste inchangé) ...
         async fetchStats() {
             try {
                 const res = await fetch('/lists/dashboard/stats');
@@ -72,8 +108,6 @@ createApp({
             if (count <= 20) return 'heat-3';
             return 'heat-4';
         },
-
-        // --- TRAIN ---
         async startSession() {
             this.currentCard = null;
             this.isFlipped = false;
@@ -89,7 +123,7 @@ createApp({
                 this.isFlipped = false;
             } else {
                 this.currentCard = null;
-                this.fetchStats(); // Refresh stats after session
+                this.fetchStats();
             }
         },
         flipCard() { this.isFlipped = true; },
@@ -105,8 +139,6 @@ createApp({
                 this.nextCard();
             } catch (e) { alert("Erreur save"); }
         },
-
-        // --- LISTS & CRUD ---
         async fetchLists() {
             try {
                 const res = await fetch('/lists/');
@@ -146,27 +178,11 @@ createApp({
                 }
             } catch (e) { alert("Erreur"); }
         },
-
-        // --- ANALYZE ---
-        async analyzeText() {
-            if (!this.sourceText) return;
-            this.isLoading = true;
-            try {
-                const res = await fetch('/lists/analyze', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ text: this.sourceText })
-                });
-                const data = await res.json();
-                this.candidates = data.candidates.map(c => ({ ...c, selected: false }));
-            } catch (e) { alert("Erreur analyse"); }
-            finally { this.isLoading = false; }
-        },
         async saveSelection() {
             if (!this.selectedListId) return;
             const payload = this.selectedCandidates.map(c => ({
                 terme: c.terme, lecture: c.lecture, pos: c.pos, ent_seq: c.ent_seq, definitions: c.definitions,
-                context: c.context // <-- ON ENVOIE LE CONTEXTE
+                context: c.context
             }));
             try {
                 const res = await fetch(`/lists/${this.selectedListId}/cards/bulk`, {

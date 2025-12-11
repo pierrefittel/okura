@@ -31,7 +31,17 @@
                 </div>
                 <div class="panel right-panel">
                     <div class="panel-header">
-                        <h2>2. Vocabulaire détecté</h2>
+                        <div class="header-top">
+                            <h2>Vocabulaire</h2>
+                            <select v-model="filterLevel" class="filter-select" title="Filtrer par difficulté">
+                                <option :value="0">Tout afficher</option>
+                                <option :value="4">Masquer N5 (Très facile)</option>
+                                <option :value="3">Masquer N5-N4 (Facile)</option>
+                                <option :value="2">N2+ uniquement (Intermédiaire)</option>
+                                <option :value="1">N1+ uniquement (Difficile)</option>
+                            </select>
+                        </div>
+                        
                         <div class="list-controls">
                             <select v-model="selectedListId">
                                 <option :value="null" disabled>Choisir une liste...</option>
@@ -43,14 +53,41 @@
                             </button>
                         </div>
                     </div>
-                    <div class="results-area" v-if="candidates.length > 0">
+
+                    <div class="results-area" v-if="filteredCandidates.length > 0">
+                        <p class="hint">
+                            {{ filteredCandidates.length }} mots affichés 
+                            <span v-if="candidates.length > filteredCandidates.length" style="opacity:0.6">
+                                ({{ candidates.length - filteredCandidates.length }} masqués)
+                            </span>
+                        </p>
+                        
                         <div class="cards-grid">
-                            <div v-for="(word, index) in candidates" :key="index" class="word-card" :class="{ 'selected': word.selected }" @click="toggleWord(word)">
-                                <div class="word-kanji">{{ word.terme }}</div>
+                            <div 
+                                v-for="(word, index) in filteredCandidates" 
+                                :key="index"
+                                class="word-card"
+                                :class="{ 'selected': word.selected }"
+                                @click="toggleWord(word)"
+                            >
+                                <div class="card-top">
+                                    <div class="word-kanji">{{ word.terme }}</div>
+                                    <span class="jlpt-badge" v-if="word.jlpt" :class="'n'+word.jlpt">
+                                        N{{ word.jlpt }}
+                                    </span>
+                                </div>
                                 <div class="word-kana">{{ word.lecture }}</div>
-                                <div class="word-def" :title="formatDefs(word.definitions)">{{ word.definitions[0] || '...' }}</div>
+                                <div class="word-def" :title="formatDefs(word.definitions)">
+                                    {{ word.definitions[0] || '...' }}
+                                </div>
                             </div>
                         </div>
+                    </div>
+                    <div v-else-if="candidates.length > 0" class="empty-state">
+                        Tous les mots ont été masqués par le filtre.
+                    </div>
+                    <div v-else class="empty-state">
+                        En attente d'analyse...
                     </div>
                 </div>
             </div>
