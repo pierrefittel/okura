@@ -59,6 +59,9 @@ def delete_card(card_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Carte introuvable")
     return {"ok": True}
 
+# --- CORRECTION ICI ---
+# On change AnalyzeResponse (Vérifiez que votre schemas.py est bien à jour avec 'sentences')
+# On retourne directement le résultat de la fonction nlp
 @router.post("/analyze", response_model=schemas.AnalyzeResponse)
 def analyze_text(request: schemas.AnalyzeRequest):
-    return {"candidates": analyze_japanese_text(request.text)}
+    return analyze_japanese_text(request.text)
