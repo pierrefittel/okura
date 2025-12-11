@@ -9,7 +9,7 @@ createApp({
             
             lists: [], selectedListId: null, activeList: null, showCreateListModal: false, newListTitle: '',
             
-            dueCards: [], currentCard: null, isFlipped: false, trainListId: null, // <-- NOUVEAU
+            dueCards: [], currentCard: null, isFlipped: false, trainListId: null,
             stats: { total_cards: 0, cards_learned: 0, due_today: 0, heatmap: {} }
         }
     },
@@ -58,7 +58,10 @@ createApp({
             }];
             try {
                 const res = await fetch(`/lists/${this.selectedListId}/cards/bulk`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-                if (res.ok) alert("Sauvegardé");
+                // Modification ici : Plus d'alerte, sauvegarde silencieuse
+                if (res.ok) {
+                    console.log("Mot sauvegardé"); 
+                }
             } catch (e) { alert("Erreur"); }
         },
 
@@ -66,7 +69,7 @@ createApp({
         async startSession() {
             this.currentCard = null; this.isFlipped = false;
             let url = '/lists/training/due';
-            if (this.trainListId) url += `?list_id=${this.trainListId}`; // <-- FILTRAGE
+            if (this.trainListId) url += `?list_id=${this.trainListId}`;
             try {
                 const res = await fetch(url);
                 this.dueCards = await res.json();
