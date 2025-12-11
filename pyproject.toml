@@ -15,7 +15,8 @@ dependencies = [
     "sudachipy (>=0.6.10,<0.7.0)",
     "sudachidict-core (>=20251022,<20251023)",
     "jamdict (>=0.1a11.post2,<0.2)",
-    "jamdict-data (>=1.5,<2.0)"
+    "jamdict-data (>=1.5,<2.0)",
+    "python-multipart (>=0.0.20,<0.1.0)"
 ]
 
 
