@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from app.models import vocabulaire as models
 from app.schemas import vocabulaire as schemas
 
@@ -21,7 +21,6 @@ def get_list_with_cards(db: Session, list_id: int):
 # --- Cartes & SRS ---
 
 def get_due_cards(db: Session, limit: int = 50):
-    """Récupère les cartes dont la date de révision est passée (ou est aujourd'hui)"""
     now = datetime.now()
     return db.query(models.VocabCard)\
              .filter(models.VocabCard.next_review <= now)\
@@ -30,55 +29,58 @@ def get_due_cards(db: Session, limit: int = 50):
              .all()
 
 def process_review(db: Session, card_id: int, quality: int):
-    """
-    Implémentation simplifiée de l'algorithme SM-2 (SuperMemo 2).
-    quality: 0-5 (0=Blackout, 3=Passable, 5=Facile)
-    """
     card = db.query(models.VocabCard).filter(models.VocabCard.id == card_id).first()
     if not card:
         return None
 
+    # Algorithme SM-2
     if quality < 3:
-        # Échec : On recommence à zéro
         card.streak = 0
         card.interval = 1
     else:
-        # Succès
         if card.streak == 0:
             card.interval = 1
         elif card.streak == 1:
             card.interval = 6
         else:
-            # Calcul exponentiel
             card.interval = int(card.interval * card.ease_factor)
-        
         card.streak += 1
-        
-        # Ajustement du facteur de facilité (Ease Factor)
-        # Formule SM-2 : EF' = EF + (0.1 - (5-q)*(0.08+(5-q)*0.02))
         card.ease_factor = card.ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
         if card.ease_factor < 1.3:
             card.ease_factor = 1.3
 
-    # Mise à jour de la date
     card.next_review = datetime.now() + timedelta(days=card.interval)
+    
+    # --- LOGGING POUR LE DASHBOARD ---
+    today = date.today()
+    log = db.query(models.ReviewLog).filter(models.ReviewLog.date == today).first()
+    if not log:
+        log = models.ReviewLog(date=today, reviewed_count=0)
+        db.add(log)
+    log.reviewed_count += 1
     
     db.commit()
     db.refresh(card)
     return card
 
-# --- Ajouts/Suppression ---
-def add_card_to_list(db: Session, list_id: int, card_data: schemas.VocabCardCreate):
-    defs_str = " | ".join(card_data.definitions) if card_data.definitions else ""
-    db_card = models.VocabCard(
-        list_id=list_id, ent_seq=card_data.ent_seq, terme=card_data.terme,
-        lecture=card_data.lecture, pos=card_data.pos, definitions=defs_str
-    )
-    db.add(db_card)
-    db.commit()
-    db.refresh(db_card)
-    return db_card
+# --- Dashboard ---
+def get_dashboard_stats(db: Session):
+    total = db.query(models.VocabCard).count()
+    learned = db.query(models.VocabCard).filter(models.VocabCard.streak > 0).count()
+    due = db.query(models.VocabCard).filter(models.VocabCard.next_review <= datetime.now()).count()
+    
+    # Heatmap (30 derniers jours pour simplifier l'envoi JSON)
+    logs = db.query(models.ReviewLog).order_by(models.ReviewLog.date.desc()).limit(60).all()
+    heatmap = {str(log.date): log.reviewed_count for log in logs}
+    
+    return {
+        "total_cards": total,
+        "cards_learned": learned,
+        "due_today": due,
+        "heatmap": heatmap
+    }
 
+# --- Ajouts/Suppression ---
 def add_cards_to_list_bulk(db: Session, list_id: int, cards_data: list[schemas.VocabCardCreate]):
     existing_seqs = db.query(models.VocabCard.ent_seq).filter(models.VocabCard.list_id == list_id).all()
     existing_set = {s[0] for s in existing_seqs}
@@ -92,7 +94,8 @@ def add_cards_to_list_bulk(db: Session, list_id: int, cards_data: list[schemas.V
         defs_str = " | ".join(card.definitions) if card.definitions else ""
         db_card = models.VocabCard(
             list_id=list_id, ent_seq=card.ent_seq, terme=card.terme,
-            lecture=card.lecture, pos=card.pos, definitions=defs_str
+            lecture=card.lecture, pos=card.pos, definitions=defs_str,
+            context=card.context # <-- SAUVEGARDE DU CONTEXTE
         )
         new_cards.append(db_card)
         processed_in_batch.add(card.ent_seq)
@@ -102,6 +105,19 @@ def add_cards_to_list_bulk(db: Session, list_id: int, cards_data: list[schemas.V
         db.commit()
         for c in new_cards: db.refresh(c)
     return new_cards
+
+def add_card_to_list(db: Session, list_id: int, card_data: schemas.VocabCardCreate):
+    # Version simple (non bulk)
+    defs_str = " | ".join(card_data.definitions) if card_data.definitions else ""
+    db_card = models.VocabCard(
+        list_id=list_id, ent_seq=card_data.ent_seq, terme=card_data.terme,
+        lecture=card_data.lecture, pos=card_data.pos, definitions=defs_str,
+        context=card_data.context
+    )
+    db.add(db_card)
+    db.commit()
+    db.refresh(db_card)
+    return db_card
 
 def delete_card(db: Session, card_id: int):
     db_card = db.query(models.VocabCard).filter(models.VocabCard.id == card_id).first()

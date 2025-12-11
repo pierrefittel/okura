@@ -8,23 +8,24 @@ from app.services.nlp import analyze_japanese_text
 
 router = APIRouter(prefix="/lists", tags=["Listes"])
 
-# --- SRS ROUTES ---
+# --- DASHBOARD ---
+@router.get("/dashboard/stats", response_model=schemas.DashboardStats)
+def get_dashboard(db: Session = Depends(get_db)):
+    return crud.get_dashboard_stats(db)
 
+# --- SRS ROUTES ---
 @router.get("/training/due", response_model=List[schemas.VocabCardResponse])
 def get_due_cards(limit: int = 50, db: Session = Depends(get_db)):
-    """Récupère les cartes à réviser maintenant"""
     return crud.get_due_cards(db, limit)
 
 @router.post("/cards/{card_id}/review", response_model=schemas.VocabCardResponse)
 def review_card(card_id: int, review: schemas.ReviewAttempt, db: Session = Depends(get_db)):
-    """Enregistre le résultat d'une révision (0-5)"""
     card = crud.process_review(db, card_id, review.quality)
     if not card:
         raise HTTPException(status_code=404, detail="Carte introuvable")
     return card
 
 # --- ROUTES STANDARD ---
-
 @router.post("/", response_model=schemas.VocabListResponse)
 def create_list(item: schemas.VocabListCreate, db: Session = Depends(get_db)):
     return crud.create_list(db, item)
@@ -44,10 +45,7 @@ def get_list_details(list_id: int, db: Session = Depends(get_db)):
 def add_card(list_id: int, item: schemas.VocabCardCreate, db: Session = Depends(get_db)):
     if not crud.get_list_with_cards(db, list_id):
         raise HTTPException(status_code=404, detail="Liste introuvable")
-    try:
-        return crud.add_card_to_list(db, list_id, item)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail="Erreur ajout")
+    return crud.add_card_to_list(db, list_id, item)
 
 @router.post("/{list_id}/cards/bulk", response_model=List[schemas.VocabCardResponse])
 def add_cards_bulk(list_id: int, items: List[schemas.VocabCardCreate], db: Session = Depends(get_db)):

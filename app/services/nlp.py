@@ -1,3 +1,4 @@
+import re
 from sudachipy import tokenizer, dictionary
 from jamdict import Jamdict
 
@@ -7,59 +8,56 @@ mode = tokenizer.Tokenizer.SplitMode.C
 jmd = Jamdict()
 
 def analyze_japanese_text(text: str):
-    morphemes = tokenizer_obj.tokenize(text, mode)
+    # 1. Découpage en phrases (grossier mais efficace pour le contexte)
+    # On coupe après 。！？ ou fin de ligne
+    sentences = re.split(r'(?<=[。！？\n])', text)
+    
     extracted_data = []
     targets = ["名詞", "動詞", "形容詞", "副詞", "助動詞"] 
 
-    for m in morphemes:
-        pos = m.part_of_speech()
-        major_pos = pos[0]
-
-        if major_pos in targets:
-            lemma = m.dictionary_form()
+    for sentence in sentences:
+        if not sentence.strip():
+            continue
             
-            # FILTRE DE SÉCURITÉ : On ignore les lemmes vides ou le joker '%' qui fait planter Jamdict
-            if not lemma or lemma.isspace() or lemma == '%':
-                continue
+        morphemes = tokenizer_obj.tokenize(sentence, mode)
 
-            definitions = []
-            ent_seq = None
+        for m in morphemes:
+            pos = m.part_of_speech()
+            major_pos = pos[0]
 
-            try:
-                # On utilise strict_lookup=True pour éviter que "hashi" ne renvoie des variantes trop éloignées,
-                # mais le comportement par défaut est souvent suffisant.
-                result = jmd.lookup(lemma)
+            if major_pos in targets:
+                lemma = m.dictionary_form()
                 
-                # 1. Recherche standard
-                if result.entries:
-                    first_entry = result.entries[0]
-                    # --- CORRECTION ICI ---
-                    # L'attribut dans l'objet Python est 'idseq', pas 'ent_seq'
-                    ent_seq = int(first_entry.idseq) 
-                    
-                    for sense in first_entry.senses:
-                        definitions.extend([g.text for g in sense.gloss])
-                
-                # 2. Noms Propres (names)
-                elif result.names:
-                     for name_entity in result.names:
-                        # Les noms propres n'ont pas toujours de idseq standard dans cette librairie
-                        # On récupère surtout les sens ici
-                        if name_entity.senses:
-                             for sense in name_entity.senses:
-                                 definitions.extend([g.text for g in sense.gloss])
+                if not lemma or lemma.isspace() or lemma == '%':
+                    continue
 
-            except Exception as e:
-                # On log l'erreur mais on ne bloque pas l'extraction des autres mots
-                print(f"Jamdict error for {lemma}: {e}")
-            
-            extracted_data.append({
-                "original": m.surface(),
-                "terme": lemma,
-                "lecture": m.reading_form(),
-                "pos": major_pos,
-                "ent_seq": ent_seq,
-                "definitions": definitions[:3]
-            })
+                definitions = []
+                ent_seq = None
+
+                try:
+                    result = jmd.lookup(lemma)
+                    if result.entries:
+                        first_entry = result.entries[0]
+                        ent_seq = int(first_entry.idseq) 
+                        for sense in first_entry.senses:
+                            definitions.extend([g.text for g in sense.gloss])
+                    elif result.names:
+                         for name_entity in result.names:
+                            if name_entity.senses:
+                                 for sense in name_entity.senses:
+                                     definitions.extend([g.text for g in sense.gloss])
+
+                except Exception as e:
+                    print(f"Jamdict error for {lemma}: {e}")
+                
+                extracted_data.append({
+                    "original": m.surface(),
+                    "terme": lemma,
+                    "lecture": m.reading_form(),
+                    "pos": major_pos,
+                    "ent_seq": ent_seq,
+                    "definitions": definitions[:3],
+                    "context": sentence.strip() # <-- On attache la phrase entière ici
+                })
 
     return extracted_data
