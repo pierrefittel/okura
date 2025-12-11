@@ -11,8 +11,8 @@ class AnalyzeRequest(BaseModel):
     text: str
 
 class AnalyzedToken(BaseModel):
-    text: str                # Ce qui est affiché (ex: "mangé")
-    is_word: bool = False    # Est-ce un mot cliquable ?
+    text: str                
+    is_word: bool = False    
     
     # Données enrichies (si is_word=True)
     lemma: Optional[str] = None

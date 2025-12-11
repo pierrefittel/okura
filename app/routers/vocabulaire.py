@@ -1,5 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.core.database import get_db
@@ -9,32 +8,6 @@ from app.services.nlp import analyze_japanese_text
 
 router = APIRouter(prefix="/lists", tags=["Listes"])
 
-# --- DATA MANAGEMENT (NOUVEAU) ---
-
-@router.get("/data/export")
-def export_data(db: Session = Depends(get_db)):
-    """Télécharge un fichier CSV complet"""
-    csv_content = crud.export_to_csv(db)
-    return Response(
-        content=csv_content,
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=okura_backup.csv"}
-    )
-
-@router.post("/data/import")
-async def import_data(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    """Importe un fichier CSV"""
-    if not file.filename.endswith('.csv'):
-        raise HTTPException(400, "Fichier CSV requis")
-    
-    content = await file.read()
-    # Décodage utf-8 impératif
-    text_content = content.decode('utf-8')
-    
-    stats = crud.import_from_csv(db, text_content)
-    return {"message": "Import terminé", "details": stats}
-
-# --- DASHBOARD ---
 @router.get("/dashboard/stats", response_model=schemas.DashboardStats)
 def get_dashboard(db: Session = Depends(get_db)):
     return crud.get_dashboard_stats(db)

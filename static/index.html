@@ -160,26 +160,11 @@
                         <div class="stat-card"><span class="stat-val success">{{ stats.cards_learned }}</span>ACQUISES</div>
                         <div class="stat-card"><span class="stat-val warning">{{ stats.due_today }}</span>À REVOIR</div>
                     </div>
-                    
                     <div style="margin-top:40px;">
                         <h3>Régularité</h3>
                         <div class="heatmap-grid">
                             <div v-for="day in heatmapDays" :title="day.date + ': ' + day.count" class="heat-cell" :class="getHeatClass(day.count)"></div>
                         </div>
-                    </div>
-
-                    <div style="margin-top:50px; border-top: 1px solid #ccc; padding-top: 30px;">
-                        <h3>Gestion des Données</h3>
-                        <div style="display:flex; gap: 20px; align-items:center;">
-                            <button class="btn-primary" @click="downloadCsv">EXPORTER CSV</button>
-                            
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <input type="file" ref="fileInput" @change="uploadCsv" style="display:none" accept=".csv">
-                                <button class="btn-text" @click="$refs.fileInput.click()">IMPORTER CSV</button>
-                                <span v-if="importMsg" style="font-size:0.9rem; color:var(--success)">{{ importMsg }}</span>
-                            </div>
-                        </div>
-                        <p style="color:#777; font-size:0.85rem; margin-top:10px;">Le format CSV permet de sauvegarder ou d'éditer vos listes dans Excel/LibreOffice.</p>
                     </div>
                 </div>
             </div>

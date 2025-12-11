@@ -1,12 +1,10 @@
-import csv
-import io
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta, date
 from app.models import vocabulaire as models
 from app.schemas import vocabulaire as schemas
 
-# --- GESTION DES LISTES ---
+# --- Listes ---
 def create_list(db: Session, list_data: schemas.VocabListCreate):
     db_list = models.VocabList(title=list_data.title, description=list_data.description)
     db.add(db_list)
@@ -20,12 +18,15 @@ def get_lists(db: Session, skip: int = 0, limit: int = 100):
 def get_list_with_cards(db: Session, list_id: int):
     return db.query(models.VocabList).filter(models.VocabList.id == list_id).first()
 
-# --- CARTES & SRS ---
+# --- Cartes & SRS ---
+
 def get_due_cards(db: Session, limit: int = 50, list_id: int = None):
     now = datetime.now()
     query = db.query(models.VocabCard).filter(models.VocabCard.next_review <= now)
+    
     if list_id:
         query = query.filter(models.VocabCard.list_id == list_id)
+        
     return query.order_by(models.VocabCard.next_review.asc()).limit(limit).all()
 
 def process_review(db: Session, card_id: int, quality: int):
@@ -55,7 +56,7 @@ def process_review(db: Session, card_id: int, quality: int):
     db.refresh(card)
     return card
 
-# --- DASHBOARD ---
+# --- Dashboard ---
 def get_dashboard_stats(db: Session):
     total = db.query(models.VocabCard).count()
     learned = db.query(models.VocabCard).filter(models.VocabCard.streak > 0).count()
@@ -64,7 +65,7 @@ def get_dashboard_stats(db: Session):
     heatmap = {str(log.date): log.reviewed_count for log in logs}
     return {"total_cards": total, "cards_learned": learned, "due_today": due, "heatmap": heatmap}
 
-# --- BULK & CRUD ---
+# --- Ajouts/Suppression ---
 def add_cards_to_list_bulk(db: Session, list_id: int, cards_data: list[schemas.VocabCardCreate]):
     existing = {s[0] for s in db.query(models.VocabCard.ent_seq).filter(models.VocabCard.list_id == list_id).all()}
     new_cards, processed = [], set()
@@ -100,91 +101,3 @@ def delete_card(db: Session, card_id: int):
         db.commit()
         return True
     return False
-
-# --- NOUVEAU : EXPORT / IMPORT CSV ---
-
-def export_to_csv(db: Session) -> str:
-    """Génère un CSV de toutes les cartes avec le nom de leur liste."""
-    output = io.StringIO()
-    writer = csv.writer(output)
-    
-    # En-têtes
-    writer.writerow(['list_title', 'terme', 'lecture', 'pos', 'definitions', 'context', 'ent_seq', 'streak', 'interval', 'next_review'])
-    
-    # Récupération de toutes les cartes avec leur liste parente
-    cards = db.query(models.VocabCard).join(models.VocabList).all()
-    
-    for c in cards:
-        writer.writerow([
-            c.vocab_list.title,
-            c.terme,
-            c.lecture,
-            c.pos,
-            c.definitions,
-            c.context or "",
-            c.ent_seq or "",
-            c.streak,
-            c.interval,
-            c.next_review.isoformat() if c.next_review else ""
-        ])
-    
-    return output.getvalue()
-
-def import_from_csv(db: Session, csv_content: str):
-    """Lit un CSV et peuple la base de données (crée les listes manquantes)."""
-    # Utilisation de csv.DictReader pour plus de robustesse
-    f = io.StringIO(csv_content)
-    reader = csv.DictReader(f)
-    
-    stats = {"lists_created": 0, "cards_created": 0, "errors": 0}
-    
-    # Cache pour éviter de requêter la table List à chaque ligne
-    lists_cache = {l.title: l for l in db.query(models.VocabList).all()}
-    
-    for row in reader:
-        try:
-            list_title = row.get('list_title', 'Import Default')
-            
-            # 1. Gestion de la liste
-            if list_title not in lists_cache:
-                new_list = models.VocabList(title=list_title, description="Importé via CSV")
-                db.add(new_list)
-                db.commit()
-                db.refresh(new_list)
-                lists_cache[list_title] = new_list
-                stats["lists_created"] += 1
-            
-            current_list = lists_cache[list_title]
-            
-            # 2. Gestion de la carte
-            # On vérifie si la carte existe déjà dans cette liste (basé sur ent_seq si dispo, sinon terme)
-            ent_seq = int(row['ent_seq']) if row.get('ent_seq') else None
-            
-            exists_query = db.query(models.VocabCard).filter(models.VocabCard.list_id == current_list.id)
-            if ent_seq:
-                exists = exists_query.filter(models.VocabCard.ent_seq == ent_seq).first()
-            else:
-                exists = exists_query.filter(models.VocabCard.terme == row['terme']).first()
-                
-            if not exists:
-                new_card = models.VocabCard(
-                    list_id=current_list.id,
-                    terme=row['terme'],
-                    lecture=row.get('lecture'),
-                    pos=row.get('pos'),
-                    definitions=row.get('definitions'),
-                    context=row.get('context'),
-                    ent_seq=ent_seq,
-                    streak=int(row.get('streak', 0)),
-                    interval=int(row.get('interval', 0))
-                    # On laisse next_review se calculer ou on le parse si besoin, ici on simplifie
-                )
-                db.add(new_card)
-                stats["cards_created"] += 1
-                
-        except Exception as e:
-            print(f"Erreur import ligne: {e}")
-            stats["errors"] += 1
-            
-    db.commit()
-    return stats

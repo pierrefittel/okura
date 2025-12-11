@@ -1,5 +1,4 @@
 :root {
-    /* THÈME CLAIR / TECH - STYLE "ARC RAIDERS" */
     --bg-app: #e8e8e8;
     --bg-panel: #ffffff;
     --bg-card: #ffffff;
@@ -27,10 +26,9 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-/* --- HEADER --- */
+/* HEADER */
 header { 
-    height: 60px; background: var(--bg-panel); 
-    border-bottom: 1px solid var(--border-strong); 
+    height: 60px; background: var(--bg-panel); border-bottom: 1px solid var(--border-strong); 
     display: flex; align-items: center; padding: 0 25px; 
     justify-content: space-between; flex-shrink: 0;
 }
@@ -46,7 +44,7 @@ nav button {
 nav button:hover { color: var(--text-main); background: var(--bg-hover); }
 nav button.active { color: var(--text-main); border-bottom-color: var(--primary); background: transparent; }
 
-/* --- LAYOUT GLOBAL --- */
+/* LAYOUT */
 main { flex: 1; overflow: hidden; display: flex; position: relative; }
 .split-view { display: flex; width: 100%; height: 100%; }
 
@@ -61,7 +59,7 @@ main { flex: 1; overflow: hidden; display: flex; position: relative; }
 }
 h2, h3 { margin: 0; font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
 
-/* --- INPUTS & CONTROLS --- */
+/* INPUTS */
 textarea { 
     flex: 1; background: var(--bg-panel); color: var(--text-main); border: none; 
     padding: 40px; font-family: 'Noto Sans JP', sans-serif; font-size: 1.25rem; 
@@ -93,7 +91,7 @@ select.filter-select, select.list-select {
     background-repeat: no-repeat; background-position: right 10px center; background-size: 10px auto;
 }
 
-/* --- READER CONTENT --- */
+/* READER */
 .reader-content { 
     flex: 1; padding: 50px; overflow-y: auto; font-family: 'Noto Sans JP'; 
     font-size: 1.5rem; line-height: 2.4; background: white; 
@@ -105,7 +103,7 @@ select.filter-select, select.list-select {
 .word-token.active { background: var(--primary); color: white; }
 .highlight-hard { border-bottom: 2px solid var(--danger); }
 
-/* --- DETAIL PANEL --- */
+/* DETAIL PANEL */
 .detail-area { padding: 30px; }
 .detail-card { 
     background: white; border: 1px solid var(--border-strong); padding: 0;
@@ -129,7 +127,7 @@ select.filter-select, select.list-select {
     border-left: 4px solid var(--primary); font-size: 0.95rem; color: #444; font-style: italic;
 }
 
-/* --- LISTS VIEW --- */
+/* LISTS */
 .lists-view { padding: 40px; overflow-y: auto; height: 100%; width: 100%; background: var(--bg-app); }
 .container { max-width: 1000px; margin: 0 auto; }
 .lists-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
@@ -153,12 +151,11 @@ select.filter-select, select.list-select {
 .btn-icon-cross { background: none; border: none; font-size: 1.5rem; color: #ccc; cursor: pointer; line-height: 1; padding: 0; transition: color 0.2s; }
 .btn-icon-cross:hover { color: var(--danger); }
 
-/* --- TRAIN MODE (CORRIGÉ: CENTRAGE) --- */
+/* TRAIN */
 .train-view { 
-    display: flex; flex-direction: column; 
+    flex: 1; width: 100%; display: flex; flex-direction: column; 
     align-items: center; justify-content: center;
-    padding: 40px; height: 100%; width: 100%; /* <-- AJOUT: width: 100% assure le centrage horizontal */
-    background: var(--bg-app); 
+    padding: 40px; background: var(--bg-app); 
 }
 .train-controls { margin-bottom: 30px; display: flex; gap: 15px; align-items: center; }
 .flashcard-container { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 0; box-shadow: 8px 8px 0 rgba(0,0,0,0.1); border: 1px solid var(--text-main); }
@@ -177,13 +174,12 @@ select.filter-select, select.list-select {
 .srs-btn.fail { color: var(--danger); } 
 .srs-btn.easy { color: var(--success); }
 
-/* --- DASHBOARD --- */
+/* DASHBOARD */
 .dashboard-view { 
-    padding: 40px; overflow-y: auto; height: 100%; width: 100%; background: var(--bg-app); 
-    display: flex; flex-direction: column; align-items: center; /* Centrage global */
+    flex: 1; padding: 40px; overflow-y: auto; width: 100%; background: var(--bg-app); 
+    display: flex; flex-direction: column; align-items: center; 
 }
 .container { width: 100%; max-width: 1000px; margin-top: 20px; } 
-
 .stats-row { display: flex; gap: 20px; margin-top: 20px; }
 .stat-card { 
     flex: 1; background: white; border: 1px solid var(--border-strong); padding: 30px; text-align: center; 
@@ -191,15 +187,11 @@ select.filter-select, select.list-select {
 }
 .stat-val { font-size: 3.5rem; font-weight: 900; display: block; line-height: 1; margin-bottom: 10px; color: var(--text-main); letter-spacing: -2px; }
 .stat-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); font-weight: 600; }
-
 .heatmap-grid { display: flex; gap: 6px; margin-top: 20px; }
 .heat-cell { width: 24px; height: 24px; background: #d4d4d4; border-radius: 0; }
-.heat-1 { background: #b2e0b2; }
-.heat-2 { background: #66c266; }
-.heat-3 { background: #26a641; }
-.heat-4 { background: #006400; }
+.heat-1 { background: #b2e0b2; } .heat-2 { background: #66c266; } .heat-3 { background: #26a641; } .heat-4 { background: #006400; }
 
-/* --- MODAL --- */
+/* MODAL */
 .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 999; }
 .modal { background: white; border: 2px solid var(--text-main); padding: 50px; width: 450px; box-shadow: 10px 10px 0 rgba(0,0,0,0.1); border-radius: 0; }
 .modal h3 { margin-top: 0; margin-bottom: 30px; font-size: 1.4rem; text-transform: uppercase; font-weight: 800; }
