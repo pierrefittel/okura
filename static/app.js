@@ -114,6 +114,35 @@ createApp({
             if (!c) return '';
             if (c <= 5) return 'heat-1'; if (c <= 10) return 'heat-2';
             if (c <= 20) return 'heat-3'; return 'heat-4';
-        }
+        },
+
+        // --- DATA ---
+        downloadCsv() {
+            window.location.href = "/lists/data/export";
+        },
+        async uploadCsv(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const res = await fetch('/lists/data/import', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    alert(`Import réussi : ${data.details.cards_created} cartes créées.`);
+                    this.fetchStats(); // Met à jour le dashboard
+                    this.fetchLists(); // Met à jour les listes
+                } else {
+                    alert("Erreur lors de l'import");
+                }
+            } catch (e) {
+                alert("Erreur réseau");
+            }
+        },
     }
 }).mount('#app')
