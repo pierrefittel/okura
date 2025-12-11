@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Okura - Entrepôt Lexical</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <div class="logo">Okura <span>大倉</span></div>
+            <nav>
+                <button :class="{ active: currentTab === 'analyze' }" @click="currentTab = 'analyze'">Analyseur</button>
+                <button :class="{ active: currentTab === 'lists' }" @click="currentTab = 'lists'">Mes Listes</button>
+            </nav>
+        </header>
+
+        <main>
+            <div v-if="currentTab === 'analyze'" class="split-view">
+                
+                <div class="panel left-panel">
+                    <div class="panel-header">
+                        <h2>1. Texte Source</h2>
+                        <button class="btn-primary" @click="analyzeText" :disabled="!sourceText">Analyser ➔</button>
+                    </div>
+                    <textarea v-model="sourceText" placeholder="Collez votre article japonais ici..."></textarea>
+                </div>
+
+                <div class="panel right-panel">
+                    <div class="panel-header">
+                        <h2>2. Vocabulaire détecté</h2>
+                        
+                        <div class="list-controls">
+                            <select v-model="selectedListId">
+                                <option :value="null" disabled>Choisir une liste...</option>
+                                <option v-for="list in lists" :value="list.id">{{ list.title }}</option>
+                            </select>
+                            <button class="btn-small" @click="showCreateListModal = true">+</button>
+                            <button class="btn-success" @click="saveSelection" :disabled="selectedCandidates.length === 0 || !selectedListId">
+                                Importer ({{ selectedCandidates.length }})
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="results-area" v-if="candidates.length > 0">
+                        <p class="hint">Cliquez sur les mots à garder.</p>
+                        
+                        <div class="cards-grid">
+                            <div 
+                                v-for="(word, index) in candidates" 
+                                :key="index"
+                                class="word-card"
+                                :class="{ 'selected': word.selected }"
+                                @click="toggleWord(word)"
+                            >
+                                <div class="word-kanji">{{ word.terme }}</div>
+                                <div class="word-kana">{{ word.lecture }}</div>
+                                <div class="word-def" :title="formatDefs(word.definitions)">
+                                    {{ word.definitions[0] || '...' }}
+                                </div>
+                                <div class="word-pos">{{ word.pos }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else class="empty-state">
+                        En attente d'analyse...
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="currentTab === 'lists'" class="lists-view">
+                <h2>Vos Listes</h2>
+                <ul>
+                    <li v-for="list in lists" :key="list.id">
+                        <strong>{{ list.title }}</strong> ({{ list.created_at }})
+                    </li>
+                </ul>
+            </div>
+        </main>
+
+        <div class="modal-backdrop" v-if="showCreateListModal" @click.self="showCreateListModal = false">
+            <div class="modal">
+                <h3>Nouvelle Liste</h3>
+                <input v-model="newListTitle" placeholder="Titre (ex: NHK News 12/12)" type="text" autofocus>
+                <div class="modal-actions">
+                    <button @click="showCreateListModal = false">Annuler</button>
+                    <button class="btn-primary" @click="createNewList">Créer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
