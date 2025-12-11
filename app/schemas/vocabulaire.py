@@ -2,8 +2,11 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
-# --- PARTIE 1 : ANALYSE (Outil sans état) ---
-# Ce sont les classes qui manquaient et causaient le crash
+# --- SRS ---
+class ReviewAttempt(BaseModel):
+    quality: int # 0=Oubli total, 3=Ok, 5=Parfait
+
+# --- ANALYSE ---
 class AnalyzeRequest(BaseModel):
     text: str
 
@@ -18,8 +21,7 @@ class AnalyzeResultItem(BaseModel):
 class AnalyzeResponse(BaseModel):
     candidates: List[AnalyzeResultItem]
 
-# --- PARTIE 2 : LISTES & CARTES (Base de données) ---
-
+# --- MODEL DB ---
 class VocabCardBase(BaseModel):
     terme: str
     lecture: Optional[str] = None
@@ -27,15 +29,17 @@ class VocabCardBase(BaseModel):
     ent_seq: Optional[int] = None
 
 class VocabCardCreate(VocabCardBase):
-    # En entrée (création), on accepte une liste de définitions (ex: venant de l'analyse)
     definitions: List[str] = []
 
 class VocabCardResponse(VocabCardBase):
     id: int
     list_id: int
     created_at: datetime
-    # En sortie (lecture DB), c'est une chaîne de caractères concaténée
     definitions: Optional[str] = None
+    
+    # Champs SRS visibles
+    next_review: Optional[datetime] = None
+    streak: int = 0
 
     class Config:
         from_attributes = True

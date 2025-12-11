@@ -8,6 +8,23 @@ from app.services.nlp import analyze_japanese_text
 
 router = APIRouter(prefix="/lists", tags=["Listes"])
 
+# --- SRS ROUTES ---
+
+@router.get("/training/due", response_model=List[schemas.VocabCardResponse])
+def get_due_cards(limit: int = 50, db: Session = Depends(get_db)):
+    """Récupère les cartes à réviser maintenant"""
+    return crud.get_due_cards(db, limit)
+
+@router.post("/cards/{card_id}/review", response_model=schemas.VocabCardResponse)
+def review_card(card_id: int, review: schemas.ReviewAttempt, db: Session = Depends(get_db)):
+    """Enregistre le résultat d'une révision (0-5)"""
+    card = crud.process_review(db, card_id, review.quality)
+    if not card:
+        raise HTTPException(status_code=404, detail="Carte introuvable")
+    return card
+
+# --- ROUTES STANDARD ---
+
 @router.post("/", response_model=schemas.VocabListResponse)
 def create_list(item: schemas.VocabListCreate, db: Session = Depends(get_db)):
     return crud.create_list(db, item)
@@ -30,29 +47,20 @@ def add_card(list_id: int, item: schemas.VocabCardCreate, db: Session = Depends(
     try:
         return crud.add_card_to_list(db, list_id, item)
     except Exception as e:
-        raise HTTPException(status_code=400, detail="Erreur lors de l'ajout (Doublon probable).")
+        raise HTTPException(status_code=400, detail="Erreur ajout")
 
-# --- NOUVELLE ROUTE ---
 @router.post("/{list_id}/cards/bulk", response_model=List[schemas.VocabCardResponse])
 def add_cards_bulk(list_id: int, items: List[schemas.VocabCardCreate], db: Session = Depends(get_db)):
-    """
-    Importe une liste de mots.
-    Ignore automatiquement les mots déjà présents dans la liste (basé sur ent_seq).
-    """
-    # 1. Vérif liste existe
     if not crud.get_list_with_cards(db, list_id):
         raise HTTPException(status_code=404, detail="Liste introuvable")
-    
-    # 2. Appel du CRUD intelligent
     return crud.add_cards_to_list_bulk(db, list_id, items)
 
-@router.post("/analyze", response_model=schemas.AnalyzeResponse, tags=["Outils"])
-def analyze_text(request: schemas.AnalyzeRequest):
-    return {"candidates": analyze_japanese_text(request.text)}
-
-@router.delete("/cards/{card_id}", tags=["Cartes"])
+@router.delete("/cards/{card_id}")
 def delete_card(card_id: int, db: Session = Depends(get_db)):
-    success = crud.delete_card(db, card_id)
-    if not success:
+    if not crud.delete_card(db, card_id):
         raise HTTPException(status_code=404, detail="Carte introuvable")
     return {"ok": True}
+
+@router.post("/analyze", response_model=schemas.AnalyzeResponse)
+def analyze_text(request: schemas.AnalyzeRequest):
+    return {"candidates": analyze_japanese_text(request.text)}
