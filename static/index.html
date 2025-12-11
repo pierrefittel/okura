@@ -3,59 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Okura - Lecteur Immersif</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <title>Okura - Entrepôt Lexical</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 </head>
 <body>
     <div id="app">
         <header>
-            <div class="logo">Okura <span>大倉</span></div>
+            <div class="brand">Okura <span class="kanji">大倉</span></div>
             <nav>
                 <button :class="{ active: currentTab === 'analyze' }" @click="currentTab = 'analyze'">Lecture</button>
                 <button :class="{ active: currentTab === 'lists' }" @click="currentTab = 'lists'">Listes</button>
                 <button :class="{ active: currentTab === 'train' }" @click="currentTab = 'train'">Entraînement</button>
-                <button :class="{ active: currentTab === 'dashboard' }" @click="currentTab = 'dashboard'">Tableau de bord</button>
+                <button :class="{ active: currentTab === 'dashboard' }" @click="currentTab = 'dashboard'">Stats</button>
             </nav>
         </header>
 
         <main>
             <div v-if="currentTab === 'analyze'" class="split-view">
-                
                 <div class="panel left-panel">
                     <div class="panel-header">
                         <div v-if="!readerMode">
-                            <h2>1. Texte Source</h2>
+                            <h2>Source</h2>
                         </div>
-                        <div v-else class="reader-controls">
-                            <button class="btn-text" @click="readerMode = false">← Éditer le texte</button>
+                        <div v-else class="reader-controls" style="width:100%; display:flex; gap:10px;">
+                            <button class="btn-text" @click="readerMode = false">← Éditer</button>
                             <select v-model="highlightLevel" class="filter-select">
-                                <option :value="0">Aucun surlignage</option>
-                                <option :value="1">Surligner Difficiles (N1/Unknown)</option>
-                                <option :value="4">Surligner Faciles (N4/N5)</option>
+                                <option :value="0">Normal</option>
+                                <option :value="1">Surligner Difficiles (N1+)</option>
                             </select>
                         </div>
-
                         <button class="btn-primary" @click="analyzeText" v-if="!readerMode" :disabled="!sourceText || isLoading">
-                            {{ isLoading ? 'Analyse...' : 'Lire ➔' }}
+                            {{ isLoading ? '...' : 'ANALYSER' }}
                         </button>
                     </div>
 
-                    <textarea v-if="!readerMode" v-model="sourceText" placeholder="Collez votre texte japonais ici..."></textarea>
-
+                    <textarea v-if="!readerMode" v-model="sourceText" placeholder="Texte japonais..."></textarea>
                     <div v-else class="reader-content">
                         <div v-for="(sentence, i) in analyzedSentences" :key="i" class="sentence-line">
                             <template v-for="(token, j) in sentence" :key="j">
-                                <span 
-                                    v-if="token.is_word" 
-                                    class="word-token"
-                                    :class="[
-                                        {'active': selectedToken === token},
-                                        getHighlightClass(token)
-                                    ]"
-                                    @click="selectToken(token, sentence)"
-                                >{{ token.text }}</span>
+                                <span v-if="token.is_word" class="word-token" :class="[{'active': selectedToken === token}, getHighlightClass(token)]" @click="selectToken(token, sentence)">{{ token.text }}</span>
                                 <span v-else class="raw-token">{{ token.text }}</span>
                             </template>
                         </div>
@@ -64,13 +52,13 @@
 
                 <div class="panel right-panel">
                     <div class="panel-header">
-                        <h2>2. Détail</h2>
-                        <div class="list-controls">
-                            <select v-model="selectedListId">
-                                <option :value="null" disabled>Liste de destination...</option>
+                        <h2>Inspection</h2>
+                        <div class="list-controls" style="display:flex; gap:5px;">
+                            <select v-model="selectedListId" class="list-select" style="width: 150px;">
+                                <option :value="null" disabled>Liste...</option>
                                 <option v-for="list in lists" :value="list.id">{{ list.title }}</option>
                             </select>
-                            <button class="btn-small" @click="showCreateListModal = true">+</button>
+                            <button class="btn-text" @click="showCreateListModal = true" style="padding: 0 10px; font-size:1.2rem;">+</button>
                         </div>
                     </div>
 
@@ -81,104 +69,114 @@
                                 <div class="reading-main">{{ selectedToken.reading }}</div>
                                 <div class="badges">
                                     <span class="pos-badge">{{ selectedToken.pos }}</span>
-                                    <span class="jlpt-badge" v-if="selectedToken.jlpt" :class="'n'+selectedToken.jlpt">N{{ selectedToken.jlpt }}</span>
+                                    <span class="jlpt-badge" v-if="selectedToken.jlpt">N{{ selectedToken.jlpt }}</span>
                                 </div>
                             </div>
-                            
                             <div class="definitions-list">
-                                <ul>
-                                    <li v-for="(def, idx) in selectedToken.definitions" :key="idx">{{ def }}</li>
-                                </ul>
+                                <ul><li v-for="(def, idx) in selectedToken.definitions" :key="idx">{{ def }}</li></ul>
                             </div>
-
                             <div class="context-preview">
-                                <strong>Contexte :</strong>
-                                <p>...{{ extractContextString(currentContextSentence) }}...</p>
+                                <strong>Contexte</strong>
+                                <p>{{ extractContextString(currentContextSentence) }}</p>
                             </div>
-
-                            <button class="btn-success full-width" @click="saveCurrentToken" :disabled="!selectedListId">
-                                Ajouter à la liste
-                            </button>
+                            <div style="padding: 20px;">
+                                <button class="btn-success" style="width:100%" @click="saveCurrentToken" :disabled="!selectedListId">SAUVEGARDER</button>
+                            </div>
                         </div>
                     </div>
-
-                    <div v-else class="empty-state">
-                        <p>Cliquez sur un mot surligné dans le texte pour voir sa définition.</p>
-                    </div>
+                    <div v-else style="padding:40px; text-align:center; color:#999;">Sélectionnez un mot à gauche.</div>
                 </div>
             </div>
 
             <div v-if="currentTab === 'lists'" class="lists-view">
                 <div class="container" v-if="!activeList">
-                    <h2>Mes Listes</h2>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h2>Vos Listes</h2>
+                        <button class="btn-primary" @click="showCreateListModal = true">Nouvelle Liste</button>
+                    </div>
                     <div class="lists-grid">
                         <div v-for="list in lists" :key="list.id" class="list-card" @click="openList(list)">
                             <h3>{{ list.title }}</h3>
-                            <p>{{ list.description }}</p>
-                            <small>{{ new Date(list.created_at).toLocaleDateString() }}</small>
+                            <p>{{ list.description || 'Sans description' }}</p>
                         </div>
                     </div>
                 </div>
                 <div class="container" v-else>
                     <div class="list-header">
-                        <button class="btn-text" @click="activeList = null">← Retour</button>
-                        <h2>{{ activeList.title }}</h2>
+                        <button class="btn-text" @click="activeList = null">← LISTES</button>
+                        <h2>{{ activeList.title }} ({{ activeList.cards.length }})</h2>
                     </div>
                     <div class="cards-table">
-                        <div class="table-header"><span>Terme</span><span>Lecture</span><span>Sens</span><span>Action</span></div>
+                        <div class="table-header"><span>Terme</span><span>Lecture</span><span>Sens</span><span></span></div>
                         <div class="table-row" v-for="card in activeList.cards" :key="card.id">
                             <span class="jp-term">{{ card.terme }}</span>
                             <span class="jp-reading">{{ card.lecture }}</span>
-                            <span class="def-preview">{{ card.definitions }}</span>
-                            <button class="btn-icon danger" @click="deleteCard(card.id)">🗑</button>
+                            <div class="def-col">
+                                <span>{{ card.definitions }}</span>
+                                <small style="color:var(--primary)" v-if="card.context">{{ card.context }}</small>
+                            </div>
+                            <button class="btn-icon-cross" @click="deleteCard(card.id)" title="Supprimer">&times;</button>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div v-if="currentTab === 'train'" class="train-view">
+                <div class="train-controls">
+                    <label style="font-weight:600; font-size:0.9rem;">S'entraîner sur :</label>
+                    <select v-model="trainListId" @change="startSession" class="list-select">
+                        <option :value="null">Toutes les listes</option>
+                        <option v-for="list in lists" :value="list.id">{{ list.title }}</option>
+                    </select>
+                </div>
+
                 <div class="flashcard-container" v-if="currentCard">
                     <div class="flashcard">
-                        <div class="card-front"><div class="kanji-large">{{ currentCard.terme }}</div></div>
+                        <div class="card-front"><div class="kanji-main">{{ currentCard.terme }}</div></div>
                         <div class="card-back" v-if="isFlipped">
-                            <div class="kana-large">{{ currentCard.lecture }}</div>
-                            <div class="def-large">{{ currentCard.definitions }}</div>
-                            <div class="context-box" v-if="currentCard.context"><p>{{ currentCard.context }}</p></div>
+                            <div class="reading-main">{{ currentCard.lecture }}</div>
+                            <div style="margin:20px 0; color:#555;">{{ currentCard.definitions }}</div>
+                            <div class="context-preview" v-if="currentCard.context"><p>{{ currentCard.context }}</p></div>
                         </div>
                     </div>
-                    <div class="controls-area">
-                        <button v-if="!isFlipped" class="btn-reveal" @click="flipCard">Réponse</button>
-                        <div v-else class="srs-buttons">
-                            <button class="srs-btn fail" @click="submitReview(0)">À Revoir</button>
-                            <button class="srs-btn hard" @click="submitReview(3)">Difficile</button>
-                            <button class="srs-btn good" @click="submitReview(4)">Bon</button>
-                            <button class="srs-btn easy" @click="submitReview(5)">Facile</button>
-                        </div>
+                    <button v-if="!isFlipped" class="btn-primary" style="width:100%; padding:15px;" @click="flipCard">RÉPONSE</button>
+                    <div v-else class="srs-buttons">
+                        <button class="srs-btn fail" @click="submitReview(0)">ÉCHEC</button>
+                        <button class="srs-btn" @click="submitReview(3)">DUR</button>
+                        <button class="srs-btn" @click="submitReview(4)">OK</button>
+                        <button class="srs-btn easy" @click="submitReview(5)">FACILE</button>
                     </div>
                 </div>
-                <div class="empty-session" v-else><h3>Session terminée !</h3></div>
+                <div v-else class="empty-state">
+                    <h3>Aucune carte à réviser pour cette sélection.</h3>
+                </div>
             </div>
 
             <div v-if="currentTab === 'dashboard'" class="dashboard-view">
                 <div class="container">
-                    <h2>Stats</h2>
+                    <h2>Progression</h2>
                     <div class="stats-row">
-                        <div class="stat-card"><span class="stat-val">{{ stats.total_cards }}</span> Cartes</div>
-                        <div class="stat-card"><span class="stat-val success">{{ stats.cards_learned }}</span> Apprises</div>
-                        <div class="stat-card"><span class="stat-val warning">{{ stats.due_today }}</span> À faire</div>
+                        <div class="stat-card"><span class="stat-val">{{ stats.total_cards }}</span>TOTALE</div>
+                        <div class="stat-card"><span class="stat-val success">{{ stats.cards_learned }}</span>ACQUISES</div>
+                        <div class="stat-card"><span class="stat-val warning">{{ stats.due_today }}</span>À REVOIR</div>
+                    </div>
+                    <div style="margin-top:40px;">
+                        <h3>Régularité</h3>
+                        <div class="heatmap-grid">
+                            <div v-for="day in heatmapDays" :title="day.date + ': ' + day.count" class="heat-cell" :class="getHeatClass(day.count)"></div>
+                        </div>
                     </div>
                 </div>
             </div>
-
         </main>
-        
+
         <div class="modal-backdrop" v-if="showCreateListModal" @click.self="showCreateListModal = false">
             <div class="modal">
-                <h3>Nouvelle Liste</h3>
-                <input v-model="newListTitle" placeholder="Titre">
-                <div class="modal-actions">
-                    <button @click="showCreateListModal = false">Annuler</button>
-                    <button class="btn-primary" @click="createNewList">Créer</button>
+                <h3>NOUVELLE LISTE</h3>
+                <input v-model="newListTitle" placeholder="Nom de la liste..." autofocus>
+                <div style="display:flex; justify-content:flex-end; gap:10px;">
+                    <button class="btn-text" @click="showCreateListModal = false">ANNULER</button>
+                    <button class="btn-primary" @click="createNewList">CRÉER</button>
                 </div>
             </div>
         </div>
