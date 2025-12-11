@@ -72,12 +72,50 @@
             </div>
 
             <div v-if="currentTab === 'lists'" class="lists-view">
-                <h2>Vos Listes</h2>
-                <ul>
-                    <li v-for="list in lists" :key="list.id">
-                        <strong>{{ list.title }}</strong> ({{ list.created_at }})
-                    </li>
-                </ul>
+                
+                <div class="container" v-if="!activeList">
+                    <h2>Mes Listes</h2>
+                    <div class="lists-grid">
+                        <div v-for="list in lists" :key="list.id" class="list-card" @click="openList(list)">
+                            <h3>{{ list.title }}</h3>
+                            <p>{{ list.description || 'Pas de description' }}</p>
+                            <div class="meta">
+                                <small>Créée le {{ new Date(list.created_at).toLocaleDateString() }}</small>
+                                <button class="btn-small">Ouvrir ➔</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="container" v-else>
+                    <div class="list-header">
+                        <button class="btn-text" @click="activeList = null">← Retour aux listes</button>
+                        <div class="header-content">
+                            <h2>{{ activeList.title }}</h2>
+                            <span class="badge">{{ activeList.cards.length }} mots</span>
+                        </div>
+                    </div>
+
+                    <div class="cards-table">
+                        <div class="table-header">
+                            <span>Terme</span>
+                            <span>Lecture</span>
+                            <span>Sens retenu</span>
+                            <span>Actions</span>
+                        </div>
+                        <div class="table-row" v-for="card in activeList.cards" :key="card.id">
+                            <span class="jp-term">{{ card.terme }}</span>
+                            <span class="jp-reading">{{ card.lecture }}</span>
+                            <span class="def-preview" :title="card.definitions">{{ card.definitions }}</span>
+                            <div class="actions">
+                                <button class="btn-icon danger" @click="deleteCard(card.id)" title="Supprimer">🗑</button>
+                            </div>
+                        </div>
+                        <div v-if="activeList.cards.length === 0" class="empty-list">
+                            Cette liste est vide. Utilisez l'analyseur pour y ajouter des mots.
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
 

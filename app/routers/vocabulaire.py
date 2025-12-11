@@ -49,3 +49,10 @@ def add_cards_bulk(list_id: int, items: List[schemas.VocabCardCreate], db: Sessi
 @router.post("/analyze", response_model=schemas.AnalyzeResponse, tags=["Outils"])
 def analyze_text(request: schemas.AnalyzeRequest):
     return {"candidates": analyze_japanese_text(request.text)}
+
+@router.delete("/cards/{card_id}", tags=["Cartes"])
+def delete_card(card_id: int, db: Session = Depends(get_db)):
+    success = crud.delete_card(db, card_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Carte introuvable")
+    return {"ok": True}

@@ -84,3 +84,11 @@ def add_cards_to_list_bulk(db: Session, list_id: int, cards_data: list[schemas.V
             db.refresh(c)
             
     return new_cards
+
+def delete_card(db: Session, card_id: int):
+    db_card = db.query(models.VocabCard).filter(models.VocabCard.id == card_id).first()
+    if db_card:
+        db.delete(db_card)
+        db.commit()
+        return True
+    return False
