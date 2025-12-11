@@ -105,3 +105,39 @@ select, input[type="text"] { padding: 8px; background: #151519; color: white; bo
 .jlpt-badge.n3 { background: #fcd34d; } /* Jaune */
 .jlpt-badge.n2 { background: #fdba74; } /* Orange */
 .jlpt-badge.n1 { background: #fca5a5; } /* Rouge */
+
+/* READER MODE */
+.reader-controls { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+.reader-content { 
+    background: #18181b; padding: 30px; border-radius: 8px; line-height: 2; 
+    font-size: 1.2rem; overflow-y: auto; flex: 1; font-family: 'Noto Sans JP';
+}
+.sentence-line { margin-bottom: 0; display: block; } /* Bloc ligne ou inline selon préférence */
+
+.word-token {
+    cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: all 0.1s;
+    border-bottom: 1px dotted #3f3f46;
+}
+.word-token:hover { background: rgba(99, 102, 241, 0.2); color: white; }
+.word-token.active { background: var(--accent); color: white; border-bottom: none; }
+
+.raw-token { color: #71717a; } /* Particules un peu grisées pour faire ressortir les mots */
+
+/* SURLIGNAGE AUTOMATIQUE */
+.highlight-hard { border-bottom: 2px solid #ef4444; } /* Souligné rouge */
+.highlight-easy { opacity: 0.6; } /* Grisé si trop facile */
+
+/* DETAIL CARD (PANEL DROIT) */
+.detail-area { padding: 20px; }
+.detail-card { background: #27272a; padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
+.card-header-large { text-align: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+.kanji-main { font-size: 2.5rem; font-weight: bold; }
+.reading-main { font-size: 1.2rem; color: var(--accent); }
+.badges { margin-top: 10px; display: flex; gap: 5px; justify-content: center; }
+.pos-badge { font-size: 0.8rem; background: #3f3f46; padding: 2px 6px; border-radius: 4px; }
+
+.definitions-list ul { padding-left: 20px; color: #d4d4d8; }
+.definitions-list li { margin-bottom: 5px; }
+
+.context-preview { background: #18181b; padding: 10px; border-radius: 6px; margin: 20px 0; font-size: 0.9rem; border-left: 3px solid var(--accent); }
+.full-width { width: 100%; margin-top: 10px; }

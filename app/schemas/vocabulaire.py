@@ -2,33 +2,37 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict
 from datetime import datetime, date
 
+# --- SRS ---
 class ReviewAttempt(BaseModel):
     quality: int
 
+# --- ANALYSE ---
 class AnalyzeRequest(BaseModel):
     text: str
 
-class AnalyzeResultItem(BaseModel):
-    original: str
-    terme: str
-    lecture: str
-    pos: str
+class AnalyzedToken(BaseModel):
+    text: str                # Ce qui est affiché (ex: "mangé")
+    is_word: bool = False    # Est-ce un mot cliquable ?
+    
+    # Données enrichies (si is_word=True)
+    lemma: Optional[str] = None
+    reading: Optional[str] = None
+    pos: Optional[str] = None
     ent_seq: Optional[int] = None
     definitions: List[str] = []
-    context: Optional[str] = None
-    jlpt: Optional[int] = None # <-- NOUVEAU (5=N5, 1=N1, ou 0 si inconnu)
+    jlpt: Optional[int] = None
 
 class AnalyzeResponse(BaseModel):
-    candidates: List[AnalyzeResultItem]
+    # Liste de phrases, chaque phrase est une liste de tokens
+    sentences: List[List[AnalyzedToken]]
 
+# --- MODEL DB ---
 class VocabCardBase(BaseModel):
     terme: str
     lecture: Optional[str] = None
     pos: Optional[str] = None
     ent_seq: Optional[int] = None
     context: Optional[str] = None
-    # Note : On ne stocke pas forcément le JLPT en base pour l'instant, 
-    # c'est surtout un outil de filtrage à l'entrée.
 
 class VocabCardCreate(VocabCardBase):
     definitions: List[str] = []
@@ -40,10 +44,10 @@ class VocabCardResponse(VocabCardBase):
     definitions: Optional[str] = None
     next_review: Optional[datetime] = None
     streak: int = 0
-
     class Config:
         from_attributes = True
 
+# --- LISTES & DASHBOARD ---
 class VocabListBase(BaseModel):
     title: str
     description: Optional[str] = None
