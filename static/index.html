@@ -35,6 +35,16 @@
                                 <option :value="1">Surligner Difficiles (N1+)</option>
                             </select>
                         </div>
+                        <div v-if="!readerMode" style="display:flex; gap:10px;">
+                            <input type="file" ref="txtUpload" @change="uploadTextFile" style="display:none" accept=".txt,.html,.htm,.epub">
+                            <button class="btn-text" @click="$refs.txtUpload.click()" title="Charger .txt, .html, .epub">
+                                📂 Fichier
+                            </button>
+                            
+                            <button class="btn-primary" @click="analyzeText" :disabled="!sourceText && !isLoading">
+                                {{ isLoading ? '...' : 'ANALYSER' }}
+                            </button>
+                        </div>
                         <button class="btn-primary" @click="analyzeText" v-if="!readerMode" :disabled="!sourceText || isLoading">
                             {{ isLoading ? '...' : 'ANALYSER' }}
                         </button>

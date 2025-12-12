@@ -5,27 +5,64 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.schemas import vocabulaire as schemas
 from app.crud import vocabulaire as crud
-from app.services.nlp import analyze_japanese_text 
+from app.services import nlp # Import du module entier pour accéder aux nouvelles fonctions
 
 router = APIRouter(prefix="/lists", tags=["Listes"])
 
-# --- DATA ---
+# --- DATA EXPORT/IMPORT ---
 @router.get("/data/export")
 def export_data(db: Session = Depends(get_db)):
     csv_content = crud.export_to_csv(db)
-    return Response(
-        content=csv_content, 
-        media_type="text/csv", 
-        headers={"Content-Disposition": "attachment; filename=okura_backup.csv"}
-    )
+    return Response(content=csv_content, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=okura_backup.csv"})
 
 @router.post("/data/import")
 async def import_data(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    if not file.filename.endswith('.csv'): 
-        raise HTTPException(400, "Fichier CSV requis")
+    if not file.filename.endswith('.csv'): raise HTTPException(400, "Fichier CSV requis")
     content = await file.read()
     stats = crud.import_from_csv(db, content.decode('utf-8'))
     return {"message": "Import terminé", "details": stats}
+
+# --- ANALYSE FICHIER (NOUVEAU) ---
+@router.post("/analyze/file", response_model=schemas.AnalyzeResponse)
+async def analyze_file(file: UploadFile = File(...)):
+    """
+    Accepte .txt, .html, .epub
+    Extrait le texte, retire les furigana, et lance l'analyse.
+    """
+    content = await file.read()
+    filename = file.filename.lower()
+    text_to_analyze = ""
+
+    try:
+        if filename.endswith('.epub'):
+            text_to_analyze = nlp.extract_text_from_epub(content)
+        elif filename.endswith('.html') or filename.endswith('.htm'):
+            # Décodage (shift-jis est fréquent sur Aozora, sinon utf-8)
+            try:
+                decoded = content.decode('utf-8')
+            except UnicodeDecodeError:
+                decoded = content.decode('shift_jis') # Fallback Aozora
+            text_to_analyze = nlp.clean_html_text(decoded)
+        else:
+            # Par défaut : Texte brut
+            try:
+                decoded = content.decode('utf-8')
+            except UnicodeDecodeError:
+                decoded = content.decode('shift_jis')
+            text_to_analyze = nlp.clean_raw_text(decoded)
+            
+    except Exception as e:
+        raise HTTPException(400, f"Erreur de lecture du fichier : {str(e)}")
+
+    if not text_to_analyze.strip():
+        raise HTTPException(400, "Le fichier semble vide ou illisible.")
+
+    return nlp.analyze_japanese_text(text_to_analyze)
+
+# --- ANALYSE TEXTE DIRECTE ---
+@router.post("/analyze", response_model=schemas.AnalyzeResponse)
+def analyze_text(request: schemas.AnalyzeRequest):
+    return nlp.analyze_japanese_text(request.text)
 
 # --- DASHBOARD ---
 @router.get("/dashboard/stats", response_model=schemas.DashboardStats)
@@ -77,7 +114,3 @@ def add_cards_bulk(list_id: int, items: List[schemas.VocabCardCreate], db: Sessi
 def delete_card(card_id: int, db: Session = Depends(get_db)):
     if not crud.delete_card(db, card_id): raise HTTPException(404, "Not found")
     return {"ok": True}
-
-@router.post("/analyze", response_model=schemas.AnalyzeResponse)
-def analyze_text(request: schemas.AnalyzeRequest):
-    return analyze_japanese_text(request.text)

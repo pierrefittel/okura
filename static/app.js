@@ -171,6 +171,48 @@ createApp({
                     this.fetchStats(); this.fetchLists();
                 } else alert("Erreur import");
             } catch (e) { alert("Erreur réseau"); }
-        }
+        },
+        
+        // --- FICHIER (NOUVEAU) ---
+        async uploadTextFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            this.isLoading = true;
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                // On appelle la nouvelle route dédiée aux fichiers
+                const res = await fetch('/lists/analyze/file', { 
+                    method: 'POST', 
+                    body: formData 
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    this.analyzedSentences = data.sentences;
+                    this.readerMode = true; 
+                    this.selectedToken = null;
+                    
+                    // Optionnel : on peut mettre le texte extrait dans sourceText pour la sauvegarde
+                    // Mais comme l'API renvoie des phrases tokenisées, reconstruire le texte source exact est complexe.
+                    // Pour l'instant, la sauvegarde d'un EPUB analysé ne sauvegardera que ce qu'il y a dans le textarea
+                    // Si on veut sauvegarder le résultat du fichier, il faudrait que l'API renvoie aussi le "raw_text".
+                    // Pour simplifier V5 : On affiche juste le résultat.
+                    
+                } else {
+                    const err = await res.json();
+                    alert("Erreur analyse: " + (err.detail || "Fichier invalide"));
+                }
+            } catch (e) { 
+                console.error(e);
+                alert("Erreur réseau"); 
+            } finally { 
+                this.isLoading = false; 
+                // Reset de l'input pour pouvoir re-uploader le même fichier si besoin
+                event.target.value = ''; 
+            }
+        },
     }
 }).mount('#app')
