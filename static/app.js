@@ -41,8 +41,9 @@ createApp({
                 const res = await fetch('/lists/analyze', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ text: this.sourceText }) });
                 const data = await res.json();
                 this.analyzedSentences = data.sentences;
-                this.readerMode = true; this.selectedToken = null;
-            } catch (e) { alert("Erreur"); } finally { this.isLoading = false; }
+                this.readerMode = true; 
+                this.selectedToken = null;
+            } catch (e) { alert("Erreur analyse"); } finally { this.isLoading = false; }
         },
         selectToken(token, sentence) { this.selectedToken = token; this.currentContextSentence = sentence; },
         extractContextString(tokens) { return tokens ? tokens.map(t => t.text).join('') : ""; },
@@ -62,34 +63,37 @@ createApp({
                 if (res.ok) console.log("Sauvegardé");
             } catch (e) { alert("Erreur"); }
         },
-        
-        // --- NOUVEAU : Sauvegarder l'analyse en cours (Créer liste avec texte) ---
+
+        // --- SAUVEGARDE & REPRISE LECTURE ---
         async saveAnalysis() {
              if (!this.sourceText) return;
              const name = prompt("Nom de la sauvegarde (ex: Chapitre 1) ?");
              if (!name) return;
              
              try {
+                // On crée une liste qui contient le texte source
                 await fetch('/lists/', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ 
                         title: name, 
                         description: "Sauvegarde de lecture",
-                        source_text: this.sourceText // On envoie le texte
+                        source_text: this.sourceText 
                     })
                 });
                 alert("Analyse sauvegardée !");
                 this.fetchLists();
              } catch(e) { alert("Erreur sauvegarde"); }
         },
-        
-        // --- NOUVEAU : Charger un texte depuis une liste ---
+
         loadTextFromList(list) {
             if (list.source_text) {
                 this.sourceText = list.source_text;
                 this.currentTab = 'analyze';
-                this.analyzeText(); // Relance l'analyse automatiquement
+                // On attend que la vue change avant de lancer l'analyse
+                this.$nextTick(() => {
+                    this.analyzeText(); 
+                });
             }
         },
 

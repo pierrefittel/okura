@@ -1,3 +1,4 @@
+/* ... (Gardez le début du fichier: :root, body, header, nav...) ... */
 :root {
     --bg-app: #e8e8e8;
     --bg-panel: #ffffff;
@@ -24,6 +25,7 @@ body {
     background-color: var(--bg-app); color: var(--text-main); 
     height: 100vh; display: flex; flex-direction: column; 
     -webkit-font-smoothing: antialiased;
+    overflow: hidden; /* Empêche le body entier de scroller */
 }
 
 /* HEADER */
@@ -44,13 +46,39 @@ nav button {
 nav button:hover { color: var(--text-main); background: var(--bg-hover); }
 nav button.active { color: var(--text-main); border-bottom-color: var(--primary); background: transparent; }
 
-/* LAYOUT */
-main { flex: 1; overflow: hidden; display: flex; position: relative; }
-.split-view { display: flex; width: 100%; height: 100%; }
+/* --- LAYOUT CLEF POUR LE SCROLL INDÉPENDANT --- */
+main { 
+    flex: 1; 
+    overflow: hidden; /* Important */
+    display: flex; 
+    position: relative; 
+}
+.split-view { 
+    display: flex; 
+    width: 100%; 
+    height: 100%; 
+}
 
-.panel { display: flex; flex-direction: column; height: 100%; background: var(--bg-panel); }
-.left-panel { flex: 1; border-right: 1px solid var(--border); }
-.right-panel { width: 420px; border-left: 1px solid var(--border); background: #fafafa; }
+.panel { 
+    display: flex; 
+    flex-direction: column; 
+    height: 100%; 
+    background: var(--bg-panel);
+}
+
+.left-panel { 
+    flex: 1; 
+    border-right: 1px solid var(--border); 
+    min-width: 0; /* Permet au texte de wrap correctement */
+}
+
+/* Le panneau de droite est fixe, il ne scrollera pas avec le gauche */
+.right-panel { 
+    width: 420px; 
+    border-left: 1px solid var(--border); 
+    background: #fafafa;
+    flex-shrink: 0;
+}
 
 .panel-header { 
     padding: 20px; border-bottom: 1px solid var(--border); 
@@ -91,10 +119,15 @@ select.filter-select, select.list-select {
     background-repeat: no-repeat; background-position: right 10px center; background-size: 10px auto;
 }
 
-/* READER */
+/* READER CONTENT (SCROLLABLE) */
 .reader-content { 
-    flex: 1; padding: 50px; overflow-y: auto; font-family: 'Noto Sans JP'; 
-    font-size: 1.5rem; line-height: 2.4; background: white; 
+    flex: 1; 
+    padding: 50px; 
+    overflow-y: auto; /* SEUL CETTE PARTIE SCROLL */
+    font-family: 'Noto Sans JP'; 
+    font-size: 1.5rem; 
+    line-height: 2.4; 
+    background: white; 
 }
 .word-token { 
     cursor: pointer; padding: 2px 0; border-bottom: 2px solid transparent; transition: all 0.1s;
@@ -103,8 +136,13 @@ select.filter-select, select.list-select {
 .word-token.active { background: var(--primary); color: white; }
 .highlight-hard { border-bottom: 2px solid var(--danger); }
 
-/* DETAIL PANEL */
-.detail-area { padding: 30px; }
+/* DETAIL PANEL (FIXE) */
+.detail-area { 
+    padding: 30px; 
+    /* Si la carte est plus grande que l'écran, on permet le scroll ici */
+    overflow-y: auto; 
+    height: 100%;
+}
 .detail-card { 
     background: white; border: 1px solid var(--border-strong); padding: 0;
     box-shadow: 4px 4px 0 rgba(0,0,0,0.1); 
@@ -127,7 +165,7 @@ select.filter-select, select.list-select {
     border-left: 4px solid var(--primary); font-size: 0.95rem; color: #444; font-style: italic;
 }
 
-/* LISTS */
+/* LISTS VIEW */
 .lists-view { padding: 40px; overflow-y: auto; height: 100%; width: 100%; background: var(--bg-app); }
 .container { max-width: 1000px; margin: 0 auto; }
 .lists-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
@@ -138,7 +176,6 @@ select.filter-select, select.list-select {
     box-shadow: 2px 2px 0 rgba(0,0,0,0.05); border-radius: 0;
     position: relative;
 }
-
 .list-card:hover { transform: translateY(-2px); box-shadow: 6px 6px 0 rgba(0,0,0,0.1); border-color: var(--text-main); }
 .list-card h3 { font-size: 1.1rem; margin-bottom: 10px; }
 .list-card p { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
@@ -152,8 +189,15 @@ select.filter-select, select.list-select {
 .jp-reading { color: var(--primary); font-weight: 500; }
 .btn-icon-cross { background: none; border: none; font-size: 1.5rem; color: #ccc; cursor: pointer; line-height: 1; padding: 0; transition: color 0.2s; }
 .btn-icon-cross:hover { color: var(--danger); }
+.btn-delete-list {
+    position: absolute; top: 10px; right: 10px;
+    background: none; border: none; color: #ccc;
+    font-size: 1.2rem; cursor: pointer; padding: 5px;
+    transition: color 0.2s; z-index: 10;
+}
+.btn-delete-list:hover { color: var(--danger); }
 
-/* TRAIN */
+/* TRAIN MODE */
 .train-view { 
     flex: 1; width: 100%; display: flex; flex-direction: column; 
     align-items: center; justify-content: center;
@@ -200,49 +244,16 @@ select.filter-select, select.list-select {
 .modal input { width: 100%; padding: 15px; border: 1px solid var(--border-strong); font-size: 1.1rem; margin-bottom: 30px; outline: none; border-radius: 0; }
 .modal input:focus { border-color: var(--primary); }
 
-/* Bouton suppression liste */
-.btn-delete-list {
-    position: absolute; top: 10px; right: 10px;
-    background: none; border: none; color: #ccc;
-    font-size: 1.2rem; cursor: pointer; padding: 5px;
-    transition: color 0.2s; z-index: 10; /* Au-dessus du clic carte */
-}
-.btn-delete-list:hover { color: var(--danger); }
-
-/* STICKY DETAIL CARD */
-.panel.right-panel {
-    position: relative;
-    /* Pour que le sticky fonctionne, le parent doit avoir une hauteur et un overflow, ce qui est déjà le cas via .panel */
-}
-
-/* La zone de contenu à droite doit permettre le scroll si la carte est trop grande, 
-   mais sinon on veut qu'elle reste en haut. */
-.detail-area { 
-    padding: 30px; 
-    overflow-y: auto; /* Permet de scroller si la définition est très longue */
-    height: 100%;     /* Occupe tout l'espace */
-}
-
-/* On n'a pas besoin de position:sticky ici car .detail-area est le seul enfant scrollable du panneau droit.
-   Comme le panneau gauche et le panneau droit sont indépendants (.split-view > .panel),
-   scroller le texte à gauche NE BOUGE PAS le panneau de droite.
-   C'est déjà le comportement par défaut de notre layout Flexbox.
-   
-   Cependant, si vous voulez que la carte reste en haut quand VOUS scrollez DANS le panneau de droite (s'il y a plusieurs cartes ? Non, il n'y en a qu'une), alors sticky ne sert à rien.
-   
-   Le comportement "La carte glisse en même temps que le texte" est en fait déjà actif : 
-   Le texte bouge (scroll gauche), la carte reste fixe (panneau droit).
-*/
-
-/* Bouton Sauvegarder Analyse */
+/* BOUTON SAUVEGARDE ANALYSE */
 .btn-save-analysis {
     background: none; border: 1px solid var(--primary); color: var(--primary);
     padding: 6px 12px; font-weight: 700; cursor: pointer; margin-right: 10px;
 }
 .btn-save-analysis:hover { background: var(--primary); color: white; }
 
-/* Bouton Reprendre Lecture (dans la liste) */
+/* BOUTON REPRENDRE LECTURE (CARD) */
 .btn-resume {
     background: var(--text-main); color: white; border: none; padding: 4px 10px;
     font-size: 0.7rem; font-weight: 700; cursor: pointer; margin-top: 10px;
+    display: block; width: 100%; margin-top: 15px;
 }

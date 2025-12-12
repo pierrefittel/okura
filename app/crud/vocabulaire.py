@@ -6,12 +6,12 @@ from datetime import datetime, timedelta, date
 from app.models import vocabulaire as models
 from app.schemas import vocabulaire as schemas
 
-# --- GESTION DES LISTES ---
+# --- LISTES ---
 def create_list(db: Session, list_data: schemas.VocabListCreate):
     db_list = models.VocabList(
         title=list_data.title, 
         description=list_data.description,
-        source_text=list_data.source_text
+        source_text=list_data.source_text # <-- Important
     )
     db.add(db_list)
     db.commit()
@@ -32,32 +32,40 @@ def delete_list(db: Session, list_id: int):
         return True
     return False
 
-# --- CARTES & SRS ---
+# --- SRS (MODIFIÉ POUR VOS STATS) ---
 def get_due_cards(db: Session, limit: int = 50, list_id: int = None):
     now = datetime.now()
     query = db.query(models.VocabCard).filter(models.VocabCard.next_review <= now)
-    if list_id: query = query.filter(models.VocabCard.list_id == list_id)
+    if list_id:
+        query = query.filter(models.VocabCard.list_id == list_id)
     return query.order_by(models.VocabCard.next_review.asc()).limit(limit).all()
 
 def process_review(db: Session, card_id: int, quality: int):
     card = db.query(models.VocabCard).filter(models.VocabCard.id == card_id).first()
     if not card: return None
+
     if quality < 3:
+        # ÉCHEC : On repousse à DEMAIN (interval = 1) pour qu'il sorte des stats du jour
         card.streak = 0
-        card.interval = 0 
+        card.interval = 1 
     else:
+        # SUCCÈS
         if card.streak == 0: card.interval = 1
         elif card.streak == 1: card.interval = 6
         else: card.interval = int(card.interval * card.ease_factor)
         card.streak += 1
         card.ease_factor = max(1.3, card.ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)))
+
     card.next_review = datetime.now() + timedelta(days=card.interval)
+    
+    # Log
     today = date.today()
     log = db.query(models.ReviewLog).filter(models.ReviewLog.date == today).first()
     if not log:
         log = models.ReviewLog(date=today, reviewed_count=0)
         db.add(log)
     log.reviewed_count += 1
+    
     db.commit()
     db.refresh(card)
     return card
@@ -66,9 +74,7 @@ def process_review(db: Session, card_id: int, quality: int):
 def get_dashboard_stats(db: Session):
     total = db.query(models.VocabCard).count()
     learned = db.query(models.VocabCard).filter(models.VocabCard.streak > 0).count()
-    # Due today inclut désormais les cartes ratées aujourd'hui (car next_review <= now)
     due = db.query(models.VocabCard).filter(models.VocabCard.next_review <= datetime.now()).count()
-    
     logs = db.query(models.ReviewLog).order_by(models.ReviewLog.date.desc()).limit(60).all()
     heatmap = {str(log.date): log.reviewed_count for log in logs}
     return {"total_cards": total, "cards_learned": learned, "due_today": due, "heatmap": heatmap}
@@ -110,7 +116,7 @@ def delete_card(db: Session, card_id: int):
         return True
     return False
 
-# --- EXPORT / IMPORT CSV ---
+# --- IMPORT / EXPORT ---
 def export_to_csv(db: Session) -> str:
     output = io.StringIO()
     writer = csv.writer(output)
@@ -157,6 +163,5 @@ def import_from_csv(db: Session, csv_content: str):
                 stats["cards_created"] += 1
         except Exception as e:
             stats["errors"] += 1
-            
     db.commit()
     return stats
