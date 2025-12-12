@@ -58,7 +58,6 @@ def get_list_details(list_id: int, db: Session = Depends(get_db)):
     if not db_list: raise HTTPException(404, "Not found")
     return db_list
 
-# --- NOUVEAU : DELETE LIST ---
 @router.delete("/{list_id}")
 def delete_list(list_id: int, db: Session = Depends(get_db)):
     if not crud.delete_list(db, list_id): raise HTTPException(404, "Not found")
