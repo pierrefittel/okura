@@ -93,6 +93,8 @@
                     </div>
                     <div class="lists-grid">
                         <div v-for="list in lists" :key="list.id" class="list-card" @click="openList(list)">
+                            <button class="btn-delete-list" @click.stop="deleteList(list.id)" title="Supprimer la liste">&times;</button>
+                            
                             <h3>{{ list.title }}</h3>
                             <p>{{ list.description || 'Sans description' }}</p>
                         </div>
@@ -165,7 +167,7 @@
                 </div>
             </div>
 
-            <div v-if="currentTab === 'export'" class="dashboard-view">
+<div v-if="currentTab === 'export'" class="dashboard-view">
                 <div class="container">
                     <h2>Données</h2>
                     
@@ -178,13 +180,13 @@
                         
                         <div style="display:flex; justify-content:center; gap: 20px; align-items:center;">
                             <button class="btn-primary" @click="downloadCsv" style="padding:15px 30px; font-size:1rem;">
-                                ⬇️ EXPORTER CSV
+                                EXPORTER CSV
                             </button>
                             
                             <div style="position:relative;">
                                 <input type="file" ref="fileInput" @change="uploadCsv" style="display:none" accept=".csv">
                                 <button class="btn-text" @click="$refs.fileInput.click()" style="padding:15px 30px; font-size:1rem; border:2px solid var(--border-strong);">
-                                    ⬆️ IMPORTER CSV
+                                    IMPORTER CSV
                                 </button>
                             </div>
                         </div>

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, date
 from app.models import vocabulaire as models
 from app.schemas import vocabulaire as schemas
 
-# --- Listes ---
+# --- GESTION DES LISTES ---
 def create_list(db: Session, list_data: schemas.VocabListCreate):
     db_list = models.VocabList(title=list_data.title, description=list_data.description)
     db.add(db_list)
@@ -20,15 +20,21 @@ def get_lists(db: Session, skip: int = 0, limit: int = 100):
 def get_list_with_cards(db: Session, list_id: int):
     return db.query(models.VocabList).filter(models.VocabList.id == list_id).first()
 
-# --- Cartes & SRS ---
+# --- NOUVEAU : SUPPRESSION DE LISTE ---
+def delete_list(db: Session, list_id: int):
+    db_list = db.query(models.VocabList).filter(models.VocabList.id == list_id).first()
+    if db_list:
+        db.delete(db_list)
+        db.commit()
+        return True
+    return False
 
+# --- CARTES & SRS ---
 def get_due_cards(db: Session, limit: int = 50, list_id: int = None):
     now = datetime.now()
     query = db.query(models.VocabCard).filter(models.VocabCard.next_review <= now)
-    
     if list_id:
         query = query.filter(models.VocabCard.list_id == list_id)
-        
     return query.order_by(models.VocabCard.next_review.asc()).limit(limit).all()
 
 def process_review(db: Session, card_id: int, quality: int):
@@ -36,17 +42,23 @@ def process_review(db: Session, card_id: int, quality: int):
     if not card: return None
 
     if quality < 3:
+        # ÉCHEC : On reset à 0 pour qu'il reste "Due Today"
         card.streak = 0
-        card.interval = 1
+        card.interval = 0 
     else:
+        # SUCCÈS
         if card.streak == 0: card.interval = 1
         elif card.streak == 1: card.interval = 6
         else: card.interval = int(card.interval * card.ease_factor)
+        
         card.streak += 1
+        # Ajustement Ease Factor
         card.ease_factor = max(1.3, card.ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)))
 
+    # Si interval = 0, next_review = maintenant (donc toujours "À réviser")
     card.next_review = datetime.now() + timedelta(days=card.interval)
     
+    # Log Stats
     today = date.today()
     log = db.query(models.ReviewLog).filter(models.ReviewLog.date == today).first()
     if not log:
@@ -58,16 +70,18 @@ def process_review(db: Session, card_id: int, quality: int):
     db.refresh(card)
     return card
 
-# --- Dashboard ---
+# --- DASHBOARD ---
 def get_dashboard_stats(db: Session):
     total = db.query(models.VocabCard).count()
     learned = db.query(models.VocabCard).filter(models.VocabCard.streak > 0).count()
+    # Due today inclut désormais les cartes ratées aujourd'hui (car next_review <= now)
     due = db.query(models.VocabCard).filter(models.VocabCard.next_review <= datetime.now()).count()
+    
     logs = db.query(models.ReviewLog).order_by(models.ReviewLog.date.desc()).limit(60).all()
     heatmap = {str(log.date): log.reviewed_count for log in logs}
     return {"total_cards": total, "cards_learned": learned, "due_today": due, "heatmap": heatmap}
 
-# --- Ajouts/Suppression ---
+# --- BULK & CRUD ---
 def add_cards_to_list_bulk(db: Session, list_id: int, cards_data: list[schemas.VocabCardCreate]):
     existing = {s[0] for s in db.query(models.VocabCard.ent_seq).filter(models.VocabCard.list_id == list_id).all()}
     new_cards, processed = [], set()
@@ -104,47 +118,28 @@ def delete_card(db: Session, card_id: int):
         return True
     return False
 
- #--- Export Import CSV ---
+# --- EXPORT / IMPORT CSV ---
 def export_to_csv(db: Session) -> str:
-    """Génère un CSV de toutes les cartes."""
     output = io.StringIO()
     writer = csv.writer(output)
-    
-    # En-têtes standards
     writer.writerow(['list_title', 'terme', 'lecture', 'pos', 'definitions', 'context', 'ent_seq', 'streak', 'interval', 'next_review'])
-    
-    # Jointure pour avoir le nom de la liste
     cards = db.query(models.VocabCard).join(models.VocabList).all()
-    
     for c in cards:
         writer.writerow([
-            c.vocab_list.title,
-            c.terme,
-            c.lecture,
-            c.pos,
-            c.definitions,
-            c.context or "",
-            c.ent_seq or "",
-            c.streak,
-            c.interval,
-            c.next_review.isoformat() if c.next_review else ""
+            c.vocab_list.title, c.terme, c.lecture, c.pos, c.definitions, c.context or "",
+            c.ent_seq or "", c.streak, c.interval, c.next_review.isoformat() if c.next_review else ""
         ])
-    
     return output.getvalue()
 
 def import_from_csv(db: Session, csv_content: str):
-    """Importe un CSV et recrée les données."""
     f = io.StringIO(csv_content)
     reader = csv.DictReader(f)
-    
     stats = {"cards_created": 0, "lists_created": 0, "errors": 0}
     lists_cache = {l.title: l for l in db.query(models.VocabList).all()}
     
     for row in reader:
         try:
             list_title = row.get('list_title', 'Import Default')
-            
-            # Création liste si inexistante
             if list_title not in lists_cache:
                 new_list = models.VocabList(title=list_title, description="Importé via CSV")
                 db.add(new_list)
@@ -154,8 +149,6 @@ def import_from_csv(db: Session, csv_content: str):
                 stats["lists_created"] += 1
             
             current_list = lists_cache[list_title]
-            
-            # Vérification doublon (basique sur terme)
             exists = db.query(models.VocabCard).filter(
                 models.VocabCard.list_id == current_list.id,
                 models.VocabCard.terme == row['terme']
@@ -163,26 +156,14 @@ def import_from_csv(db: Session, csv_content: str):
             
             if not exists:
                 ent_seq = int(row['ent_seq']) if row.get('ent_seq') else None
-                streak = int(row.get('streak', 0))
-                interval = int(row.get('interval', 0))
-                
                 new_card = models.VocabCard(
-                    list_id=current_list.id,
-                    terme=row['terme'],
-                    lecture=row.get('lecture'),
-                    pos=row.get('pos'),
-                    definitions=row.get('definitions'),
-                    context=row.get('context'),
-                    ent_seq=ent_seq,
-                    streak=streak,
-                    interval=interval
-                    # On laisse next_review se recalculer ou par défaut aujourd'hui pour simplifier
+                    list_id=current_list.id, terme=row['terme'], lecture=row.get('lecture'),
+                    pos=row.get('pos'), definitions=row.get('definitions'), context=row.get('context'),
+                    ent_seq=ent_seq, streak=int(row.get('streak', 0)), interval=int(row.get('interval', 0))
                 )
                 db.add(new_card)
                 stats["cards_created"] += 1
-                
         except Exception as e:
-            print(f"Erreur import: {e}")
             stats["errors"] += 1
             
     db.commit()

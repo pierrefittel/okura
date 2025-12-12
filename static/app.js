@@ -99,11 +99,19 @@ createApp({
             this.newListTitle = ''; this.showCreateListModal = false; await this.fetchLists();
         },
         async deleteCard(id) {
-            // SUPPRESSION DIRECTE (SANS CONFIRMATION)
             try {
                 await fetch(`/lists/cards/${id}`, {method: 'DELETE'});
                 if (this.activeList) this.activeList.cards = this.activeList.cards.filter(c => c.id !== id);
             } catch (e) { console.error("Erreur suppression", e); }
+        },
+        async deleteList(id) {
+            if(!confirm("Supprimer cette liste et tous ses mots ?")) return;
+            try {
+                await fetch(`/lists/${id}`, {method: 'DELETE'});
+                this.lists = this.lists.filter(l => l.id !== id);
+                if (this.activeList && this.activeList.id === id) this.activeList = null;
+                if (this.selectedListId === id) this.selectedListId = this.lists.length ? this.lists[0].id : null;
+            } catch (e) { alert("Erreur suppression liste"); }
         },
         
         // --- DASH & DATA ---

@@ -136,7 +136,9 @@ select.filter-select, select.list-select {
     background: white; border: 1px solid var(--border-strong); padding: 30px; 
     cursor: pointer; transition: transform 0.1s, box-shadow 0.1s;
     box-shadow: 2px 2px 0 rgba(0,0,0,0.05); border-radius: 0;
+    position: relative;
 }
+
 .list-card:hover { transform: translateY(-2px); box-shadow: 6px 6px 0 rgba(0,0,0,0.1); border-color: var(--text-main); }
 .list-card h3 { font-size: 1.1rem; margin-bottom: 10px; }
 .list-card p { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
@@ -197,3 +199,12 @@ select.filter-select, select.list-select {
 .modal h3 { margin-top: 0; margin-bottom: 30px; font-size: 1.4rem; text-transform: uppercase; font-weight: 800; }
 .modal input { width: 100%; padding: 15px; border: 1px solid var(--border-strong); font-size: 1.1rem; margin-bottom: 30px; outline: none; border-radius: 0; }
 .modal input:focus { border-color: var(--primary); }
+
+/* Bouton suppression liste */
+.btn-delete-list {
+    position: absolute; top: 10px; right: 10px;
+    background: none; border: none; color: #ccc;
+    font-size: 1.2rem; cursor: pointer; padding: 5px;
+    transition: color 0.2s; z-index: 10; /* Au-dessus du clic carte */
+}
+.btn-delete-list:hover { color: var(--danger); }
