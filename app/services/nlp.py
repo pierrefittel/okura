@@ -1,60 +1,89 @@
 import re
 import os
+import urllib.request
+import zipfile
 from sudachipy import tokenizer, dictionary
 from jamdict import Jamdict
 from bs4 import BeautifulSoup
 import ebooklib
 from ebooklib import epub
 import tempfile
+import jieba
+from pypinyin import pinyin, Style
 
 # --- MOTEUR JAPONAIS ---
 tokenizer_obj = dictionary.Dictionary().create()
 mode = tokenizer.Tokenizer.SplitMode.C
 jmd = Jamdict()
 
-# --- MOTEUR CHINOIS ---
-import jieba
-from pypinyin import pinyin, Style
-
-# Chargeur simple pour CC-CEDICT (Dictionnaire Chinois)
-# Si le fichier 'cedict_ts.u8' est présent à la racine, il sera chargé.
-CEDICT_PATH = "cedict_ts.u8"
+# --- MOTEUR CHINOIS (CC-CEDICT) ---
+CEDICT_URL = "https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.zip"
+CEDICT_FILE = "cedict_ts.u8"
 cedict_data = {}
 
 def load_cedict():
-    if not os.path.exists(CEDICT_PATH):
-        return
-    print("Chargement CC-CEDICT...")
-    with open(CEDICT_PATH, 'r', encoding='utf-8') as f:
-        for line in f:
-            if line.startswith('#') or not line.strip(): continue
-            # Format: Traditional Simplified [pin1 yin1] /meaning/meaning/.../
-            parts = line.split(' ', 2)
-            if len(parts) < 3: continue
-            traditional = parts[0]
-            simplified = parts[1]
-            rest = parts[2]
-            
-            pinyin_match = re.search(r'\[(.*?)\]', rest)
-            if not pinyin_match: continue
-            pinyin_str = pinyin_match.group(1)
-            
-            defs_raw = rest.split('/', 1)[1].strip('/')
-            definitions = defs_raw.split('/')
-            
-            # On indexe par Simplifié (le plus courant) et Traditionnel
-            entry = {"pinyin": pinyin_str, "defs": definitions}
-            if simplified not in cedict_data: cedict_data[simplified] = []
-            cedict_data[simplified].append(entry)
-            if traditional not in cedict_data: cedict_data[traditional] = []
-            cedict_data[traditional].append(entry)
-    print("CC-CEDICT chargé.")
+    """Charge le dictionnaire chinois. Le télécharge si nécessaire."""
+    # 1. Téléchargement automatique
+    if not os.path.exists(CEDICT_FILE):
+        print("Dictionnaire chinois introuvable. Téléchargement de CC-CEDICT...")
+        try:
+            zip_path = "cedict.zip"
+            # Téléchargement (peut prendre quelques secondes)
+            urllib.request.urlretrieve(CEDICT_URL, zip_path)
+            # Extraction
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(".")
+            # Nettoyage
+            if os.path.exists(zip_path):
+                os.remove(zip_path)
+            print("Dictionnaire chinois installé avec succès.")
+        except Exception as e:
+            print(f"Erreur critique téléchargement CEDICT: {e}")
+            return
 
-# Tentative de chargement au démarrage
+    # 2. Parsing et chargement en mémoire
+    if not cedict_data: # Évite de recharger si déjà en mémoire
+        print("Chargement de CEDICT en mémoire...")
+        try:
+            with open(CEDICT_FILE, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.startswith('#') or not line.strip(): continue
+                    
+                    # Format: Traditionnel Simplifié [pin1 yin1] /sens 1/sens 2/.../
+                    # ex: 漢語 汉语 [Han4 yu3] /Chinese language/
+                    parts = line.split(' ', 2)
+                    if len(parts) < 3: continue
+                    
+                    traditional = parts[0]
+                    simplified = parts[1]
+                    rest = parts[2]
+                    
+                    # Extraction des définitions
+                    if '/' in rest:
+                        # On prend tout ce qu'il y a après le premier /
+                        defs_raw = rest.split('/', 1)[1].strip().strip('/')
+                        definitions = defs_raw.split('/')
+                    else:
+                        definitions = []
+
+                    entry = {"defs": definitions}
+                    
+                    # Indexation par Simplifié (standard) et Traditionnel
+                    if simplified not in cedict_data: cedict_data[simplified] = []
+                    cedict_data[simplified].append(entry)
+                    
+                    if traditional not in cedict_data: cedict_data[traditional] = []
+                    cedict_data[traditional].append(entry)
+            print(f"CEDICT chargé : {len(cedict_data)} entrées.")
+        except Exception as e:
+            print(f"Erreur lecture CEDICT: {e}")
+
+# Initialisation au démarrage du serveur
 try: load_cedict()
-except: pass
+except Exception as e: print(f"Erreur init NLP Chinois: {e}")
 
-# --- NETTOYAGE (Commun) ---
+
+# --- NETTOYAGE COMMUN ---
 def clean_html_text(html_content: str) -> str:
     soup = BeautifulSoup(html_content, 'html.parser')
     for tag in soup(['rt', 'rp', 'script', 'style']): tag.decompose()
@@ -84,11 +113,13 @@ def extract_text_from_epub(file_bytes: bytes) -> str:
 # --- ANALYSEUR DISPATCHER ---
 def analyze_text(text: str, lang: str = "jp"):
     if lang == "cn":
+        # On s'assure que le dico est chargé (cas du lazy loading)
+        if not cedict_data: load_cedict()
         return analyze_chinese_text(text)
     else:
         return analyze_japanese_text(text)
 
-# --- IMPLEMENTATION CHINOISE ---
+# --- ANALYSEUR CHINOIS ---
 def analyze_chinese_text(text: str):
     lines = text.splitlines()
     sentences_output = []
@@ -98,13 +129,14 @@ def analyze_chinese_text(text: str):
             sentences_output.append([{"text": "", "is_word": False}])
             continue
             
-        # Segmentation Jieba
+        # Segmentation avec Jieba
         words = list(jieba.cut(line))
         line_tokens = []
         
         for word in words:
-            # Ignorer ponctuation basique (très simplifié)
-            is_word = len(word.strip()) > 0 and not re.match(r'[，。？！：；“”‘’（）\s]', word)
+            # Filtre simple : est-ce un mot significatif ? (Pas de ponctuation)
+            # On vérifie s'il contient au moins un caractère qui n'est pas de la ponctuation basique
+            is_word = len(word.strip()) > 0 and not re.match(r'^[，。？！：；“”‘’（）\s\d]+$', word)
             
             token_data = {
                 "text": word,
@@ -112,27 +144,26 @@ def analyze_chinese_text(text: str):
             }
             
             if is_word:
-                # 1. Pinyin (Lecture)
+                # 1. Pinyin via pypinyin (couvre 100% des cas)
                 py_list = pinyin(word, style=Style.TONE)
                 reading = " ".join([item[0] for item in py_list])
                 
-                # 2. Définition (CC-CEDICT)
+                # 2. Définitions via CC-CEDICT (si dispo)
                 defs = []
                 if word in cedict_data:
-                    # On prend la première entrée
-                    entry = cedict_data[word][0]
-                    # Si le pinyin du dico est différent, on peut l'afficher aussi
-                    defs = entry['defs'][:4]
+                    # On prend les définitions du premier match
+                    # (Parfois un mot a plusieurs entrées, on simplifie ici)
+                    defs = cedict_data[word][0]['defs'][:5]
                 elif not cedict_data:
-                    defs = ["(Dictionnaire cedict_ts.u8 manquant)"]
+                    defs = ["(Dictionnaire en cours de chargement...)"]
                 
                 token_data.update({
                     "lemma": word,
                     "reading": reading,
-                    "pos": "Mot", # Jieba basic n'a pas de POS par défaut, on simplifie
-                    "ent_seq": hash(word) % 100000000, # ID temporaire
+                    "pos": "Mot", # Jieba basic ne donne pas le POS, on met générique
+                    "ent_seq": hash(word) % 100000000, # ID unique simulé
                     "definitions": defs,
-                    "jlpt": None # Pas de HSK implémenté pour l'instant
+                    "jlpt": None
                 })
                 
             line_tokens.append(token_data)
@@ -140,7 +171,7 @@ def analyze_chinese_text(text: str):
         
     return {"sentences": sentences_output}
 
-# --- IMPLEMENTATION JAPONAISE (Votre version stable V4) ---
+# --- ANALYSEUR JAPONAIS ---
 def estimate_jlpt(entry):
     for sense in entry.senses:
         for m in sense.misc:
@@ -160,7 +191,7 @@ def analyze_japanese_text(text: str):
     targets = ["名詞", "動詞", "形容詞", "副詞", "助動詞", "形状詞", "代名詞", "固有名詞"] 
 
     for line in lines:
-        if not line.strip(): 
+        if not line: 
             sentences_output.append([{"text": "", "is_word": False}])
             continue
 
@@ -169,7 +200,10 @@ def analyze_japanese_text(text: str):
 
         for m in morphemes:
             token_text = m.surface()
-            pos = m.part_of_speech()[0]
+            # Sécurité pour les pos vides
+            try: pos = m.part_of_speech()[0]
+            except: pos = "Inconnu"
+            
             token_data = {"text": token_text, "is_word": False}
 
             if pos in targets:
