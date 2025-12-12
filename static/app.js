@@ -10,9 +10,8 @@ createApp({
             lists: [], selectedListId: null, activeList: null, showCreateListModal: false, newListTitle: '',
             
             dueCards: [], currentCard: null, isFlipped: false, trainListId: null,
-            
             stats: { total_cards: 0, cards_learned: 0, due_today: 0, heatmap: {} },
-            importMsg: '' // <-- Corrigé : Variable à la racine
+            importMsg: ''
         }
     },
     computed: {
@@ -63,6 +62,36 @@ createApp({
                 if (res.ok) console.log("Sauvegardé");
             } catch (e) { alert("Erreur"); }
         },
+        
+        // --- NOUVEAU : Sauvegarder l'analyse en cours (Créer liste avec texte) ---
+        async saveAnalysis() {
+             if (!this.sourceText) return;
+             const name = prompt("Nom de la sauvegarde (ex: Chapitre 1) ?");
+             if (!name) return;
+             
+             try {
+                await fetch('/lists/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        title: name, 
+                        description: "Sauvegarde de lecture",
+                        source_text: this.sourceText // On envoie le texte
+                    })
+                });
+                alert("Analyse sauvegardée !");
+                this.fetchLists();
+             } catch(e) { alert("Erreur sauvegarde"); }
+        },
+        
+        // --- NOUVEAU : Charger un texte depuis une liste ---
+        loadTextFromList(list) {
+            if (list.source_text) {
+                this.sourceText = list.source_text;
+                this.currentTab = 'analyze';
+                this.analyzeText(); // Relance l'analyse automatiquement
+            }
+        },
 
         // --- TRAIN ---
         async startSession() {
@@ -105,13 +134,12 @@ createApp({
             } catch (e) { console.error("Erreur suppression", e); }
         },
         async deleteList(id) {
-            if(!confirm("Supprimer cette liste et tous ses mots ?")) return;
+            if(!confirm("Supprimer cette liste ?")) return;
             try {
                 await fetch(`/lists/${id}`, {method: 'DELETE'});
                 this.lists = this.lists.filter(l => l.id !== id);
                 if (this.activeList && this.activeList.id === id) this.activeList = null;
-                if (this.selectedListId === id) this.selectedListId = this.lists.length ? this.lists[0].id : null;
-            } catch (e) { alert("Erreur suppression liste"); }
+            } catch (e) { alert("Erreur"); }
         },
         
         // --- DASH & DATA ---
@@ -124,9 +152,7 @@ createApp({
             if (c <= 5) return 'heat-1'; if (c <= 10) return 'heat-2';
             if (c <= 20) return 'heat-3'; return 'heat-4';
         },
-        downloadCsv() {
-            window.location.href = "/lists/data/export";
-        },
+        downloadCsv() { window.location.href = "/lists/data/export"; },
         async uploadCsv(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -136,11 +162,9 @@ createApp({
                 const res = await fetch('/lists/data/import', { method: 'POST', body: formData });
                 if (res.ok) {
                     const data = await res.json();
-                    // Mise à jour du message de succès
-                    this.importMsg = `Import réussi : ${data.details.cards_created} cartes créées.`;
+                    this.importMsg = `Succès: ${data.details.cards_created} cartes.`;
                     setTimeout(() => this.importMsg = '', 4000);
-                    this.fetchStats(); 
-                    this.fetchLists();
+                    this.fetchStats(); this.fetchLists();
                 } else alert("Erreur import");
             } catch (e) { alert("Erreur réseau"); }
         }

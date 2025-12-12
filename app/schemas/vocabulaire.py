@@ -11,10 +11,8 @@ class AnalyzeRequest(BaseModel):
     text: str
 
 class AnalyzedToken(BaseModel):
-    text: str                
-    is_word: bool = False    
-    
-    # Données enrichies (si is_word=True)
+    text: str
+    is_word: bool = False
     lemma: Optional[str] = None
     reading: Optional[str] = None
     pos: Optional[str] = None
@@ -23,7 +21,6 @@ class AnalyzedToken(BaseModel):
     jlpt: Optional[int] = None
 
 class AnalyzeResponse(BaseModel):
-    # Liste de phrases, chaque phrase est une liste de tokens
     sentences: List[List[AnalyzedToken]]
 
 # --- MODEL DB ---
@@ -51,6 +48,7 @@ class VocabCardResponse(VocabCardBase):
 class VocabListBase(BaseModel):
     title: str
     description: Optional[str] = None
+    source_text: Optional[str] = None # <-- NOUVEAU
 
 class VocabListCreate(VocabListBase):
     pass
@@ -58,6 +56,7 @@ class VocabListCreate(VocabListBase):
 class VocabListResponse(VocabListBase):
     id: int
     created_at: datetime
+    source_text: Optional[str] = None # <-- NOUVEAU
     class Config:
         from_attributes = True
 

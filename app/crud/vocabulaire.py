@@ -8,7 +8,11 @@ from app.schemas import vocabulaire as schemas
 
 # --- GESTION DES LISTES ---
 def create_list(db: Session, list_data: schemas.VocabListCreate):
-    db_list = models.VocabList(title=list_data.title, description=list_data.description)
+    db_list = models.VocabList(
+        title=list_data.title, 
+        description=list_data.description,
+        source_text=list_data.source_text
+    )
     db.add(db_list)
     db.commit()
     db.refresh(db_list)
@@ -20,7 +24,6 @@ def get_lists(db: Session, skip: int = 0, limit: int = 100):
 def get_list_with_cards(db: Session, list_id: int):
     return db.query(models.VocabList).filter(models.VocabList.id == list_id).first()
 
-# --- NOUVEAU : SUPPRESSION DE LISTE ---
 def delete_list(db: Session, list_id: int):
     db_list = db.query(models.VocabList).filter(models.VocabList.id == list_id).first()
     if db_list:
@@ -33,39 +36,28 @@ def delete_list(db: Session, list_id: int):
 def get_due_cards(db: Session, limit: int = 50, list_id: int = None):
     now = datetime.now()
     query = db.query(models.VocabCard).filter(models.VocabCard.next_review <= now)
-    if list_id:
-        query = query.filter(models.VocabCard.list_id == list_id)
+    if list_id: query = query.filter(models.VocabCard.list_id == list_id)
     return query.order_by(models.VocabCard.next_review.asc()).limit(limit).all()
 
 def process_review(db: Session, card_id: int, quality: int):
     card = db.query(models.VocabCard).filter(models.VocabCard.id == card_id).first()
     if not card: return None
-
     if quality < 3:
-        # ÉCHEC : On reset à 0 pour qu'il reste "Due Today"
         card.streak = 0
         card.interval = 0 
     else:
-        # SUCCÈS
         if card.streak == 0: card.interval = 1
         elif card.streak == 1: card.interval = 6
         else: card.interval = int(card.interval * card.ease_factor)
-        
         card.streak += 1
-        # Ajustement Ease Factor
         card.ease_factor = max(1.3, card.ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)))
-
-    # Si interval = 0, next_review = maintenant (donc toujours "À réviser")
     card.next_review = datetime.now() + timedelta(days=card.interval)
-    
-    # Log Stats
     today = date.today()
     log = db.query(models.ReviewLog).filter(models.ReviewLog.date == today).first()
     if not log:
         log = models.ReviewLog(date=today, reviewed_count=0)
         db.add(log)
     log.reviewed_count += 1
-    
     db.commit()
     db.refresh(card)
     return card

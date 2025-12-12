@@ -208,3 +208,41 @@ select.filter-select, select.list-select {
     transition: color 0.2s; z-index: 10; /* Au-dessus du clic carte */
 }
 .btn-delete-list:hover { color: var(--danger); }
+
+/* STICKY DETAIL CARD */
+.panel.right-panel {
+    position: relative;
+    /* Pour que le sticky fonctionne, le parent doit avoir une hauteur et un overflow, ce qui est déjà le cas via .panel */
+}
+
+/* La zone de contenu à droite doit permettre le scroll si la carte est trop grande, 
+   mais sinon on veut qu'elle reste en haut. */
+.detail-area { 
+    padding: 30px; 
+    overflow-y: auto; /* Permet de scroller si la définition est très longue */
+    height: 100%;     /* Occupe tout l'espace */
+}
+
+/* On n'a pas besoin de position:sticky ici car .detail-area est le seul enfant scrollable du panneau droit.
+   Comme le panneau gauche et le panneau droit sont indépendants (.split-view > .panel),
+   scroller le texte à gauche NE BOUGE PAS le panneau de droite.
+   C'est déjà le comportement par défaut de notre layout Flexbox.
+   
+   Cependant, si vous voulez que la carte reste en haut quand VOUS scrollez DANS le panneau de droite (s'il y a plusieurs cartes ? Non, il n'y en a qu'une), alors sticky ne sert à rien.
+   
+   Le comportement "La carte glisse en même temps que le texte" est en fait déjà actif : 
+   Le texte bouge (scroll gauche), la carte reste fixe (panneau droit).
+*/
+
+/* Bouton Sauvegarder Analyse */
+.btn-save-analysis {
+    background: none; border: 1px solid var(--primary); color: var(--primary);
+    padding: 6px 12px; font-weight: 700; cursor: pointer; margin-right: 10px;
+}
+.btn-save-analysis:hover { background: var(--primary); color: white; }
+
+/* Bouton Reprendre Lecture (dans la liste) */
+.btn-resume {
+    background: var(--text-main); color: white; border: none; padding: 4px 10px;
+    font-size: 0.7rem; font-weight: 700; cursor: pointer; margin-top: 10px;
+}

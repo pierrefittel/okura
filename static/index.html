@@ -26,8 +26,10 @@
                 <div class="panel left-panel">
                     <div class="panel-header">
                         <div v-if="!readerMode"><h2>Source</h2></div>
-                        <div v-else class="reader-controls" style="width:100%; display:flex; gap:10px;">
+                        <div v-else class="reader-controls" style="width:100%; display:flex; gap:10px; align-items:center;">
                             <button class="btn-text" @click="readerMode = false">← Éditer</button>
+                            <button class="btn-save-analysis" @click="saveAnalysis" title="Sauvegarder ce texte dans une liste">💾 Sauvegarder</button>
+                            
                             <select v-model="highlightLevel" class="filter-select">
                                 <option :value="0">Normal</option>
                                 <option :value="1">Surligner Difficiles (N1+)</option>
@@ -93,10 +95,13 @@
                     </div>
                     <div class="lists-grid">
                         <div v-for="list in lists" :key="list.id" class="list-card" @click="openList(list)">
-                            <button class="btn-delete-list" @click.stop="deleteList(list.id)" title="Supprimer la liste">&times;</button>
-                            
+                            <button class="btn-delete-list" @click.stop="deleteList(list.id)">&times;</button>
                             <h3>{{ list.title }}</h3>
                             <p>{{ list.description || 'Sans description' }}</p>
+                            
+                            <button v-if="list.source_text" class="btn-resume" @click.stop="loadTextFromList(list)">
+                                📖 LIRE LE TEXTE
+                            </button>
                         </div>
                     </div>
                 </div>
