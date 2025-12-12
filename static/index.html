@@ -28,28 +28,24 @@
                         <div v-if="!readerMode"><h2>Source</h2></div>
                         <div v-else class="reader-controls" style="width:100%; display:flex; gap:10px; align-items:center;">
                             <button class="btn-text" @click="readerMode = false">← Éditer</button>
-                            <button class="btn-save-analysis" @click="saveAnalysis" title="Sauvegarder ce texte dans une liste">💾 Sauvegarder</button>
-                            
+                            <button class="btn-save-analysis" @click="saveAnalysis" title="Sauvegarder">💾</button>
                             <select v-model="highlightLevel" class="filter-select">
                                 <option :value="0">Normal</option>
-                                <option :value="1">Surligner Difficiles (N1+)</option>
+                                <option :value="1">Surligner Difficiles</option>
                             </select>
                         </div>
+                        
                         <div v-if="!readerMode" style="display:flex; gap:10px;">
                             <input type="file" ref="txtUpload" @change="uploadTextFile" style="display:none" accept=".txt,.html,.htm,.epub">
-                            <button class="btn-text" @click="$refs.txtUpload.click()" title="Charger .txt, .html, .epub">
-                                📂 Fichier
-                            </button>
-                            
+                            <button class="btn-text" @click="$refs.txtUpload.click()" title="Charger .txt, .html, .epub">📂 Fichier</button>
                             <button class="btn-primary" @click="analyzeText" :disabled="!sourceText && !isLoading">
                                 {{ isLoading ? '...' : 'ANALYSER' }}
                             </button>
                         </div>
-                        <button class="btn-primary" @click="analyzeText" v-if="!readerMode" :disabled="!sourceText || isLoading">
-                            {{ isLoading ? '...' : 'ANALYSER' }}
-                        </button>
                     </div>
-                    <textarea v-if="!readerMode" v-model="sourceText" placeholder="Texte japonais..."></textarea>
+
+                    <textarea v-if="!readerMode" v-model="sourceText" placeholder="Collez un texte OU chargez un fichier Aozora (HTML/EPUB)..."></textarea>
+                    
                     <div v-else class="reader-content">
                         <div v-for="(sentence, i) in analyzedSentences" :key="i" class="sentence-line">
                             <template v-for="(token, j) in sentence" :key="j">
@@ -71,6 +67,7 @@
                             <button class="btn-text" @click="showCreateListModal = true" style="padding: 0 10px; font-size:1.2rem;">+</button>
                         </div>
                     </div>
+
                     <div class="detail-area" v-if="selectedToken">
                         <div class="detail-card">
                             <div class="card-header-large">
@@ -96,7 +93,7 @@
                     <div v-else style="padding:40px; text-align:center; color:#999;">Sélectionnez un mot à gauche.</div>
                 </div>
             </div>
-
+            
             <div v-if="currentTab === 'lists'" class="lists-view">
                 <div class="container" v-if="!activeList">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
@@ -108,20 +105,17 @@
                             <button class="btn-delete-list" @click.stop="deleteList(list.id)">&times;</button>
                             <h3>{{ list.title }}</h3>
                             <p>{{ list.description || 'Sans description' }}</p>
-                            
-                            <button v-if="list.source_text" class="btn-resume" @click.stop="loadTextFromList(list)">
-                                📖 LIRE LE TEXTE
-                            </button>
+                            <button v-if="list.source_text" class="btn-resume" @click.stop="loadTextFromList(list)">📖 LIRE LE TEXTE</button>
                         </div>
                     </div>
                 </div>
                 <div class="container" v-else>
                     <div class="list-header">
-                        <button class="btn-text" @click="activeList = null">← LISTES</button>
-                        <h2>{{ activeList.title }} ({{ activeList.cards.length }})</h2>
+                        <button class="btn-text" @click="activeList = null">← Retour</button>
+                        <h2>{{ activeList.title }}</h2>
                     </div>
                     <div class="cards-table">
-                        <div class="table-header"><span>Terme</span><span>Lecture</span><span>Sens</span><span></span></div>
+                        <div class="table-header"><span>Terme</span><span>Lecture</span><span>Sens</span><span>Action</span></div>
                         <div class="table-row" v-for="card in activeList.cards" :key="card.id">
                             <span class="jp-term">{{ card.terme }}</span>
                             <span class="jp-reading">{{ card.lecture }}</span>
@@ -129,7 +123,7 @@
                                 <span>{{ card.definitions }}</span>
                                 <small style="color:var(--primary)" v-if="card.context">{{ card.context }}</small>
                             </div>
-                            <button class="btn-icon-cross" @click="deleteCard(card.id)" title="Supprimer">&times;</button>
+                            <button class="btn-icon-cross" @click="deleteCard(card.id)">🗑</button>
                         </div>
                     </div>
                 </div>
@@ -160,13 +154,11 @@
                         <button class="srs-btn easy" @click="submitReview(5)">FACILE</button>
                     </div>
                 </div>
-                <div v-else class="empty-state">
-                    <h3>Aucune carte à réviser pour cette sélection.</h3>
-                </div>
+                <div v-else class="empty-state"><h3>Aucune carte à réviser.</h3></div>
             </div>
-
+            
             <div v-if="currentTab === 'dashboard'" class="dashboard-view">
-                <div class="container">
+                 <div class="container">
                     <h2>Progression</h2>
                     <div class="stats-row">
                         <div class="stat-card"><span class="stat-val">{{ stats.total_cards }}</span>TOTALE</div>
@@ -181,34 +173,20 @@
                     </div>
                 </div>
             </div>
-
-<div v-if="currentTab === 'export'" class="dashboard-view">
-                <div class="container">
+            
+            <div v-if="currentTab === 'export'" class="dashboard-view">
+                 <div class="container">
                     <h2>Données</h2>
-                    
                     <div class="detail-card" style="margin-top:20px; padding:40px; text-align:center;">
                         <h3 style="margin-bottom:20px;">Sauvegarde & Restauration</h3>
-                        <p style="color:#777; font-size:0.9rem; margin-bottom:30px; max-width:600px; margin-left:auto; margin-right:auto;">
-                            Exportez vos données au format CSV pour les sécuriser ou les utiliser dans un tableur.
-                            L'import permet de restaurer une sauvegarde ou d'ajouter des mots en masse.
-                        </p>
-                        
                         <div style="display:flex; justify-content:center; gap: 20px; align-items:center;">
-                            <button class="btn-primary" @click="downloadCsv" style="padding:15px 30px; font-size:1rem;">
-                                EXPORTER CSV
-                            </button>
-                            
+                            <button class="btn-primary" @click="downloadCsv" style="padding:15px 30px; font-size:1rem;">EXPORTER CSV</button>
                             <div style="position:relative;">
                                 <input type="file" ref="fileInput" @change="uploadCsv" style="display:none" accept=".csv">
-                                <button class="btn-text" @click="$refs.fileInput.click()" style="padding:15px 30px; font-size:1rem; border:2px solid var(--border-strong);">
-                                    IMPORTER CSV
-                                </button>
+                                <button class="btn-text" @click="$refs.fileInput.click()" style="padding:15px 30px; font-size:1rem; border:2px solid var(--border-strong);">IMPORTER CSV</button>
                             </div>
                         </div>
-                        
-                        <div v-if="importMsg" style="margin-top:20px; color:var(--success); font-weight:bold;">
-                            {{ importMsg }}
-                        </div>
+                        <div v-if="importMsg" style="margin-top:20px; color:var(--success); font-weight:bold;">{{ importMsg }}</div>
                     </div>
                 </div>
             </div>
