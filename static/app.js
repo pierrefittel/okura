@@ -4,9 +4,13 @@ createApp({
     data() {
         return {
             currentTab: 'analyze',
+            currentLang: 'jp', // 'jp' ou 'cn'
+            
             sourceText: '', readerMode: false, isLoading: false, analyzedSentences: [],
             selectedToken: null, currentContextSentence: [], highlightLevel: 0,
+            
             lists: [], selectedListId: null, activeList: null, showCreateListModal: false, newListTitle: '',
+            
             dueCards: [], currentCard: null, isFlipped: false, trainListId: null,
             stats: { total_cards: 0, cards_learned: 0, due_today: 0, heatmap: {} },
             importMsg: ''
@@ -31,6 +35,12 @@ createApp({
         }
     },
     methods: {
+        setLang(lang) {
+            this.currentLang = lang;
+            this.readerMode = false; // Reset reader si on change de langue
+            this.analyzedSentences = [];
+        },
+
         // --- READER ---
         async uploadTextFile(event) {
             const file = event.target.files[0];
@@ -38,29 +48,77 @@ createApp({
             this.isLoading = true;
             const formData = new FormData();
             formData.append('file', file);
+            // On pourrait passer la langue ici aussi si l'API l'acceptait en query param
+            // Mais pour l'instant l'upload ne fait que du nettoyage, l'analyse vient après
             try {
                 const res = await fetch('/lists/analyze/file', { method: 'POST', body: formData });
                 if (res.ok) {
                     const data = await res.json();
                     this.analyzedSentences = data.sentences;
                     this.readerMode = true; this.selectedToken = null;
-                } else {
-                    const err = await res.json();
-                    alert("Erreur: " + err.detail);
-                }
+                } else { alert("Erreur fichier"); }
             } catch (e) { alert("Erreur upload"); }
             finally { this.isLoading = false; event.target.value = ''; }
         },
+
         async analyzeText() {
             if (!this.sourceText) return;
             this.isLoading = true;
             try {
-                const res = await fetch('/lists/analyze', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ text: this.sourceText }) });
+                const res = await fetch('/lists/analyze', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({ 
+                        text: this.sourceText,
+                        lang: this.currentLang // <-- ENVOI DE LA LANGUE
+                    }) 
+                });
                 const data = await res.json();
                 this.analyzedSentences = data.sentences;
                 this.readerMode = true; this.selectedToken = null;
             } catch (e) { alert("Erreur analyse"); } finally { this.isLoading = false; }
         },
+        
+        async saveAnalysis() {
+             if (!this.sourceText) return;
+             const name = prompt("Nom de la sauvegarde ?");
+             if (!name) return;
+             try {
+                await fetch('/lists/', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        title: name, 
+                        description: "Sauvegarde", 
+                        source_text: this.sourceText,
+                        lang: this.currentLang // <-- On sauvegarde aussi la langue
+                    })
+                });
+                alert("Sauvegardé !"); this.fetchLists();
+             } catch(e) { alert("Erreur"); }
+        },
+
+        loadTextFromList(list) {
+            if (list.source_text) {
+                this.sourceText = list.source_text;
+                this.currentLang = list.lang || 'jp'; // <-- On restaure la langue
+                this.currentTab = 'analyze';
+                this.$nextTick(() => { this.analyzeText(); });
+            }
+        },
+        
+        async createNewList() {
+            if (!this.newListTitle) return;
+            await fetch('/lists/', { 
+                method: 'POST', headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ 
+                    title: this.newListTitle,
+                    lang: this.currentLang // <-- La liste hérite de la langue active
+                }) 
+            });
+            this.newListTitle = ''; this.showCreateListModal = false; await this.fetchLists();
+        },
+
+        // ... (Reste des fonctions inchangées : selectToken, saveCurrentToken, CRUD...) ...
         selectToken(token, sentence) { this.selectedToken = token; this.currentContextSentence = sentence; },
         extractContextString(tokens) { return tokens ? tokens.map(t => t.text).join('') : ""; },
         getHighlightClass(token) {
@@ -79,36 +137,6 @@ createApp({
                 if (res.ok) console.log("Sauvegardé");
             } catch (e) { alert("Erreur"); }
         },
-        async saveAnalysis() {
-             if (!this.sourceText) return;
-             const name = prompt("Nom de la sauvegarde ?");
-             if (!name) return;
-             try {
-                await fetch('/lists/', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ title: name, description: "Sauvegarde", source_text: this.sourceText })
-                });
-                alert("Sauvegardé !"); this.fetchLists();
-             } catch(e) { alert("Erreur"); }
-        },
-        loadTextFromList(list) {
-            if (list.source_text) {
-                this.sourceText = list.source_text;
-                this.currentTab = 'analyze';
-                this.$nextTick(() => { this.analyzeText(); });
-            }
-        },
-
-        // --- LISTS ---
-        async createNewList() {
-            if (!this.newListTitle) return;
-            await fetch('/lists/', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ title: this.newListTitle }) });
-            // FORCE LA FERMETURE ET LE RESET
-            this.newListTitle = ''; 
-            this.showCreateListModal = false; 
-            await this.fetchLists();
-        },
-        // ... (Reste des fonctions inchangées: fetchLists, deleteCard, etc.) ...
         async fetchLists() {
             const res = await fetch('/lists/');
             this.lists = await res.json();

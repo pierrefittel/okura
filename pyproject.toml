@@ -6,7 +6,10 @@ authors = [
     {name = "pierrefittel",email = "landrypierrefitte@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.13"
+# --- MODIFICATION ICI ---
+# Au lieu de ">=3.13", on met ">=3.13,<4.0" pour satisfaire pypinyin
+requires-python = ">=3.13,<4.0" 
+# ------------------------
 dependencies = [
     "fastapi (>=0.124.0,<0.125.0)",
     "uvicorn (>=0.38.0,<0.39.0)",
@@ -18,7 +21,9 @@ dependencies = [
     "jamdict-data (>=1.5,<2.0)",
     "python-multipart (>=0.0.20,<0.1.0)",
     "beautifulsoup4 (>=4.12.0,<5.0.0)",
-    "EbookLib (>=0.18,<1.0)"
+    "EbookLib (>=0.18,<1.0)",
+    "jieba (>=0.42.1,<0.43.0)",
+    "pypinyin (>=0.50.0,<0.51.0)"
 ]
 
 [build-system]

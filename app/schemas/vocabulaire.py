@@ -2,13 +2,13 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict
 from datetime import datetime, date
 
-# --- SRS ---
 class ReviewAttempt(BaseModel):
     quality: int
 
 # --- ANALYSE ---
 class AnalyzeRequest(BaseModel):
     text: str
+    lang: str = "jp" # 'jp' ou 'cn'
 
 class AnalyzedToken(BaseModel):
     text: str
@@ -44,11 +44,12 @@ class VocabCardResponse(VocabCardBase):
     class Config:
         from_attributes = True
 
-# --- LISTES & DASHBOARD ---
+# --- LISTES ---
 class VocabListBase(BaseModel):
     title: str
     description: Optional[str] = None
-    source_text: Optional[str] = None # <-- NOUVEAU
+    source_text: Optional[str] = None
+    lang: str = "jp" # <-- NOUVEAU
 
 class VocabListCreate(VocabListBase):
     pass
@@ -56,7 +57,6 @@ class VocabListCreate(VocabListBase):
 class VocabListResponse(VocabListBase):
     id: int
     created_at: datetime
-    source_text: Optional[str] = None # <-- NOUVEAU
     class Config:
         from_attributes = True
 
