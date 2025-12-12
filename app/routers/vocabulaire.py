@@ -5,18 +5,17 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.schemas import vocabulaire as schemas
 from app.crud import vocabulaire as crud
-from app.services import nlp # Import du module entier
+from app.services import nlp 
 
 router = APIRouter(prefix="/lists", tags=["Listes"])
 
-# --- ANALYSE FICHIER (C'EST ICI QUE CA BLOQUAIT) ---
+# --- ANALYSE FICHIER ---
 @router.post("/analyze/file", response_model=schemas.AnalyzeResponse)
 async def analyze_file(file: UploadFile = File(...)):
     try:
         content = await file.read()
         filename = file.filename.lower()
         text = ""
-
         if filename.endswith('.epub'):
             text = nlp.extract_text_from_epub(content)
         elif filename.endswith('.html') or filename.endswith('.htm'):
@@ -28,18 +27,17 @@ async def analyze_file(file: UploadFile = File(...)):
             except: decoded = content.decode('shift_jis', errors='ignore')
             text = nlp.clean_raw_text(decoded)
             
-        if not text.strip(): raise HTTPException(400, "Fichier vide ou illisible")
-        return nlp.analyze_japanese_text(text)
+        if not text.strip(): raise HTTPException(400, "Fichier vide")
+        
+        return nlp.analyze_text(text, lang="jp") 
         
     except Exception as e:
-        print(f"Erreur upload: {e}")
         raise HTTPException(400, f"Erreur traitement: {str(e)}")
 
 @router.post("/analyze", response_model=schemas.AnalyzeResponse)
 def analyze_text(request: schemas.AnalyzeRequest):
-    return nlp.analyze_japanese_text(request.text)
+    return nlp.analyze_text(request.text, lang=request.lang)
 
-# --- DATA EXPORT/IMPORT ---
 @router.get("/data/export")
 def export_data(db: Session = Depends(get_db)):
     return Response(content=crud.export_to_csv(db), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=okura_backup.csv"})
@@ -49,7 +47,6 @@ async def import_data(file: UploadFile = File(...), db: Session = Depends(get_db
     content = await file.read()
     return {"message": "Import terminé", "details": crud.import_from_csv(db, content.decode('utf-8'))}
 
-# --- ROUTES CLASSIQUES ---
 @router.get("/dashboard/stats", response_model=schemas.DashboardStats)
 def get_dashboard(db: Session = Depends(get_db)): return crud.get_dashboard_stats(db)
 
@@ -77,6 +74,10 @@ def get_list_details(list_id: int, db: Session = Depends(get_db)):
 def delete_list(list_id: int, db: Session = Depends(get_db)):
     if not crud.delete_list(db, list_id): raise HTTPException(404, "Not found")
     return {"ok": True}
+
+@router.post("/{list_id}/cards", response_model=schemas.VocabCardResponse)
+def add_card(list_id: int, item: schemas.VocabCardCreate, db: Session = Depends(get_db)):
+    return crud.add_card_to_list(db, list_id, item)
 
 @router.post("/{list_id}/cards/bulk", response_model=List[schemas.VocabCardResponse])
 def add_cards_bulk(list_id: int, items: List[schemas.VocabCardCreate], db: Session = Depends(get_db)):
