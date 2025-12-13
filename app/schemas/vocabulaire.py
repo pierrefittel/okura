@@ -21,7 +21,7 @@ class AnalyzedToken(BaseModel):
 
 class AnalyzeResponse(BaseModel):
     sentences: List[List[AnalyzedToken]]
-    raw_text: Optional[str] = None # <-- NOUVEAU : Pour renvoyer le texte extrait
+    raw_text: Optional[str] = None
 
 # --- MODEL DB (Inchangé) ---
 class VocabCardBase(BaseModel):

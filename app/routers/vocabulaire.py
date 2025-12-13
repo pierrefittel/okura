@@ -9,17 +9,15 @@ from app.services import nlp
 
 router = APIRouter(prefix="/lists", tags=["Listes"])
 
-# --- ANALYSE FICHIER (Corrigé pour Langue) ---
+# --- ANALYSE FICHIER ---
 @router.post("/analyze/file", response_model=schemas.AnalyzeResponse)
-async def analyze_file(
-    file: UploadFile = File(...), 
-    lang: str = Form("jp") # <-- On récupère la langue du frontend
-):
+async def analyze_file(file: UploadFile = File(...), lang: str = Form("jp")):
     try:
         content = await file.read()
         filename = file.filename.lower()
         text = ""
 
+        # Extraction selon format
         if filename.endswith('.epub'):
             text = nlp.extract_text_from_epub(content)
         elif filename.endswith('.html') or filename.endswith('.htm'):
@@ -33,7 +31,7 @@ async def analyze_file(
             
         if not text.strip(): raise HTTPException(400, "Fichier vide")
         
-        # On passe la langue dynamique
+        # Appel à la fonction d'analyse qui renvoie maintenant 'raw_text'
         return nlp.analyze_text(text, lang=lang)
         
     except Exception as e:
