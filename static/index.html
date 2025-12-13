@@ -48,6 +48,7 @@
                         <div v-if="!readerMode" style="display:flex; gap:10px;">
                             <input type="file" ref="txtUpload" @change="uploadTextFile" style="display:none" accept=".txt,.html,.htm,.epub">
                             <button class="btn-text" @click="$refs.txtUpload.click()">Import Fichier</button>
+                            
                             <button class="btn-text" @click="openLoadModal">Charger</button>
                             
                             <button class="btn-primary" @click="analyzeText" :disabled="!sourceText || isLoading">
