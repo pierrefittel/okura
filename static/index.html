@@ -49,7 +49,11 @@
                             <input type="file" ref="txtUpload" @change="uploadTextFile" style="display:none" accept=".txt,.html,.htm,.epub">
                             <button class="btn-text" @click="$refs.txtUpload.click()">Import Fichier</button>
                             <button class="btn-text" @click="openLoadModal">Charger</button>
-                            <button class="btn-primary" @click="analyzeText" :disabled="!sourceText && !isLoading">{{ isLoading ? '...' : 'ANALYSER' }}</button>
+                            
+                            <button class="btn-primary" @click="analyzeText" :disabled="!sourceText || isLoading">
+                                <span v-if="isLoading" class="loading-dots">TRAITEMENT</span>
+                                <span v-else>ANALYSER</span>
+                            </button>
                         </div>
                     </div>
                     <textarea v-if="!readerMode" v-model="sourceText" :placeholder="currentLang === 'jp' ? 'Texte japonais...' : 'Texte chinois...'"></textarea>

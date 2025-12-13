@@ -21,7 +21,9 @@ class AnalyzedToken(BaseModel):
 
 class AnalyzeResponse(BaseModel):
     sentences: List[List[AnalyzedToken]]
+    raw_text: Optional[str] = None # <-- NOUVEAU : Pour renvoyer le texte extrait
 
+# --- MODEL DB (Inchangé) ---
 class VocabCardBase(BaseModel):
     terme: str
     lecture: Optional[str] = None
@@ -65,7 +67,6 @@ class DashboardStats(BaseModel):
     due_today: int
     heatmap: Dict[str, int]
 
-# --- NOUVEAU ---
 class AnalysisBase(BaseModel):
     title: str
     content: str

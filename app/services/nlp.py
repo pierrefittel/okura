@@ -112,12 +112,16 @@ def extract_text_from_epub(file_bytes: bytes) -> str:
 
 # --- ANALYSEUR DISPATCHER ---
 def analyze_text(text: str, lang: str = "jp"):
+    result = {}
     if lang == "cn":
-        # On s'assure que le dico est chargé (cas du lazy loading)
         if not cedict_data: load_cedict()
-        return analyze_chinese_text(text)
+        result = analyze_chinese_text(text)
     else:
-        return analyze_japanese_text(text)
+        result = analyze_japanese_text(text)
+    
+    # ON AJOUTE LE TEXTE BRUT À LA RÉPONSE
+    result["raw_text"] = text 
+    return result
 
 # --- ANALYSEUR CHINOIS ---
 def analyze_chinese_text(text: str):
@@ -128,46 +132,24 @@ def analyze_chinese_text(text: str):
         if not line.strip():
             sentences_output.append([{"text": "", "is_word": False}])
             continue
-            
-        # Segmentation avec Jieba
         words = list(jieba.cut(line))
         line_tokens = []
-        
         for word in words:
-            # Filtre simple : est-ce un mot significatif ? (Pas de ponctuation)
-            # On vérifie s'il contient au moins un caractère qui n'est pas de la ponctuation basique
             is_word = len(word.strip()) > 0 and not re.match(r'^[，。？！：；“”‘’（）\s\d]+$', word)
-            
-            token_data = {
-                "text": word,
-                "is_word": is_word
-            }
-            
+            token_data = {"text": word, "is_word": is_word}
             if is_word:
-                # 1. Pinyin via pypinyin (couvre 100% des cas)
                 py_list = pinyin(word, style=Style.TONE)
                 reading = " ".join([item[0] for item in py_list])
-                
-                # 2. Définitions via CC-CEDICT (si dispo)
                 defs = []
-                if word in cedict_data:
-                    # On prend les définitions du premier match
-                    # (Parfois un mot a plusieurs entrées, on simplifie ici)
-                    defs = cedict_data[word][0]['defs'][:5]
-                elif not cedict_data:
-                    defs = ["(Dictionnaire en cours de chargement...)"]
-                
+                if word in cedict_data: defs = cedict_data[word][0]['defs'][:5]
+                elif not cedict_data: defs = ["(Dictionnaire non chargé)"]
                 token_data.update({
-                    "lemma": word,
-                    "reading": reading,
-                    "pos": "Mot", # Jieba basic ne donne pas le POS, on met générique
-                    "ent_seq": hash(word) % 100000000, # ID unique simulé
-                    "definitions": defs,
-                    "jlpt": None
+                    "lemma": word, "reading": reading, "pos": "Mot", 
+                    "ent_seq": hash(word) % 100000000, "definitions": defs, "jlpt": None
                 })
-                
             line_tokens.append(token_data)
         sentences_output.append(line_tokens)
+    return {"sentences": sentences_output}
         
     return {"sentences": sentences_output}
 
@@ -191,48 +173,34 @@ def analyze_japanese_text(text: str):
     targets = ["名詞", "動詞", "形容詞", "副詞", "助動詞", "形状詞", "代名詞", "固有名詞"] 
 
     for line in lines:
-        if not line: 
+        if not line.strip(): 
             sentences_output.append([{"text": "", "is_word": False}])
             continue
-
         morphemes = tokenizer_obj.tokenize(line, mode)
         line_tokens = []
-
         for m in morphemes:
             token_text = m.surface()
-            # Sécurité pour les pos vides
             try: pos = m.part_of_speech()[0]
             except: pos = "Inconnu"
-            
             token_data = {"text": token_text, "is_word": False}
-
             if pos in targets:
                 forms = []
                 if m.dictionary_form(): forms.append(m.dictionary_form())
                 if m.normalized_form() and m.normalized_form() not in forms: forms.append(m.normalized_form())
                 if token_text not in forms: forms.append(token_text)
-
                 found = None
                 for f in forms:
                     if not f or f.isspace() or f == '%': continue
                     try:
                         res = jmd.lookup(f)
-                        if res.entries:
-                            found = res.entries[0]
-                            break
+                        if res.entries: found = res.entries[0]; break
                     except: continue
-                
                 if found:
                     defs = []
                     for s in found.senses: defs.extend([g.text for g in s.gloss])
                     token_data.update({
-                        "is_word": True,
-                        "lemma": forms[0],
-                        "reading": m.reading_form(),
-                        "pos": pos,
-                        "ent_seq": int(found.idseq),
-                        "definitions": defs[:4],
-                        "jlpt": estimate_jlpt(found)
+                        "is_word": True, "lemma": forms[0], "reading": m.reading_form(),
+                        "pos": pos, "ent_seq": int(found.idseq), "definitions": defs[:4], "jlpt": estimate_jlpt(found)
                     })
             line_tokens.append(token_data)
         sentences_output.append(line_tokens)
