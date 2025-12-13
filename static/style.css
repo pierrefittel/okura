@@ -274,3 +274,36 @@ button.btn-success { background: var(--success); color: white; border: none; pad
 .modal { background: white; border: 2px solid var(--text-main); padding: 50px; width: 450px; box-shadow: 10px 10px 0 rgba(0,0,0,0.1); border-radius: 0; }
 .modal input { width: 100%; padding: 15px; border: 1px solid var(--border-strong); font-size: 1.1rem; margin-bottom: 30px; outline: none; border-radius: 0; }
 .modal input:focus { border-color: var(--primary); }
+.modal-actions {
+    display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;
+}
+
+/* LISTE DES ANALYSES */
+.analysis-list {
+    max-height: 400px; overflow-y: auto; border: 1px solid var(--border);
+}
+.analysis-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 15px; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background 0.1s;
+}
+.analysis-item:hover { background: var(--bg-hover); }
+.ana-info { flex: 1; display: flex; align-items: center; gap: 10px; }
+.ana-lang { 
+    font-size: 0.7rem; font-weight: 900; text-transform: uppercase; 
+    color: var(--text-muted); border: 1px solid #ddd; padding: 2px 4px; 
+}
+.ana-title { font-weight: 700; color: var(--text-main); }
+.ana-date { font-size: 0.8rem; color: var(--text-muted); margin-left: auto; margin-right: 15px; }
+
+/* TOAST NOTIFICATION */
+.toast-notification {
+    position: fixed; bottom: 30px; right: 30px;
+    background: #333; color: white; padding: 12px 25px;
+    border-radius: 4px; font-weight: 600; font-size: 0.9rem;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 1000;
+    animation: fadein 0.3s, fadeout 0.3s 2.7s;
+}
+
+@keyframes fadein { from {opacity: 0; transform: translateY(10px);} to {opacity: 1; transform: translateY(0);} }
+@keyframes fadeout { from {opacity: 1;} to {opacity: 0;} }

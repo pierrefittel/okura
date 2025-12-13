@@ -5,10 +5,9 @@ from datetime import datetime, date
 class ReviewAttempt(BaseModel):
     quality: int
 
-# --- ANALYSE ---
 class AnalyzeRequest(BaseModel):
     text: str
-    lang: str = "jp" # 'jp' ou 'cn'
+    lang: str = "jp"
 
 class AnalyzedToken(BaseModel):
     text: str
@@ -23,7 +22,6 @@ class AnalyzedToken(BaseModel):
 class AnalyzeResponse(BaseModel):
     sentences: List[List[AnalyzedToken]]
 
-# --- MODEL DB ---
 class VocabCardBase(BaseModel):
     terme: str
     lecture: Optional[str] = None
@@ -44,12 +42,10 @@ class VocabCardResponse(VocabCardBase):
     class Config:
         from_attributes = True
 
-# --- LISTES ---
 class VocabListBase(BaseModel):
     title: str
     description: Optional[str] = None
-    source_text: Optional[str] = None
-    lang: str = "jp" # <-- NOUVEAU
+    lang: str = "jp"
 
 class VocabListCreate(VocabListBase):
     pass
@@ -68,3 +64,18 @@ class DashboardStats(BaseModel):
     cards_learned: int
     due_today: int
     heatmap: Dict[str, int]
+
+# --- NOUVEAU ---
+class AnalysisBase(BaseModel):
+    title: str
+    content: str
+    lang: str = "jp"
+
+class AnalysisCreate(AnalysisBase):
+    pass
+
+class AnalysisResponse(AnalysisBase):
+    id: int
+    created_at: datetime
+    class Config:
+        from_attributes = True

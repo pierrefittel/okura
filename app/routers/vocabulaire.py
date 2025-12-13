@@ -9,7 +9,21 @@ from app.services import nlp
 
 router = APIRouter(prefix="/lists", tags=["Listes"])
 
-# --- ANALYSE FICHIER ---
+# --- ANALYSES (TEXTES) ---
+@router.post("/analyses/", response_model=schemas.AnalysisResponse)
+def create_analysis(item: schemas.AnalysisCreate, db: Session = Depends(get_db)):
+    return crud.create_analysis(db, item)
+
+@router.get("/analyses/", response_model=List[schemas.AnalysisResponse])
+def get_analyses(db: Session = Depends(get_db)):
+    return crud.get_analyses(db)
+
+@router.delete("/analyses/{id}")
+def delete_analysis(id: int, db: Session = Depends(get_db)):
+    if not crud.delete_analysis(db, id): raise HTTPException(404)
+    return {"ok": True}
+
+# --- ANALYSE FICHIER / TEXTE ---
 @router.post("/analyze/file", response_model=schemas.AnalyzeResponse)
 async def analyze_file(file: UploadFile = File(...)):
     try:
@@ -26,18 +40,16 @@ async def analyze_file(file: UploadFile = File(...)):
             try: decoded = content.decode('utf-8')
             except: decoded = content.decode('shift_jis', errors='ignore')
             text = nlp.clean_raw_text(decoded)
-            
         if not text.strip(): raise HTTPException(400, "Fichier vide")
-        
-        return nlp.analyze_text(text, lang="jp") 
-        
+        return nlp.analyze_text(text, lang="jp") # Default detection could be improved
     except Exception as e:
-        raise HTTPException(400, f"Erreur traitement: {str(e)}")
+        raise HTTPException(400, f"Erreur: {str(e)}")
 
 @router.post("/analyze", response_model=schemas.AnalyzeResponse)
 def analyze_text(request: schemas.AnalyzeRequest):
     return nlp.analyze_text(request.text, lang=request.lang)
 
+# --- RESTE DU FICHIER (Standard) ---
 @router.get("/data/export")
 def export_data(db: Session = Depends(get_db)):
     return Response(content=crud.export_to_csv(db), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=okura_backup.csv"})
@@ -72,7 +84,7 @@ def get_list_details(list_id: int, db: Session = Depends(get_db)):
 
 @router.delete("/{list_id}")
 def delete_list(list_id: int, db: Session = Depends(get_db)):
-    if not crud.delete_list(db, list_id): raise HTTPException(404, "Not found")
+    if not crud.delete_list(db, list_id): raise HTTPException(404)
     return {"ok": True}
 
 @router.post("/{list_id}/cards", response_model=schemas.VocabCardResponse)
