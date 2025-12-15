@@ -6,10 +6,14 @@ from sqlalchemy.orm import sessionmaker
 # On récupère l'URL depuis l'environnement, ou on garde localhost par défaut (pour les tests hors docker si besoin)
 SQLALCHEMY_DATABASE_URL = os.getenv(
     "DATABASE_URL", 
-    "postgresql://landry:secret@localhost:5432/vocab_db"
+    "postgresql://user:password@localhost:5432/vocab_db"
 )
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

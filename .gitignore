@@ -162,4 +162,4 @@ cython_debug/
 #.idea/
 
 # Node.js
-node_modules/
+node_modules/*.db
